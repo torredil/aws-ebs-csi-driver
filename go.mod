@@ -6,14 +6,14 @@ require (
 	github.com/golang/mock v1.5.0
 	github.com/golang/protobuf v1.5.0
 	github.com/google/go-cmp v0.5.5
-	github.com/kubernetes-csi/csi-proxy/client v1.0.1
+	github.com/kubernetes-csi/csi-proxy/client v1.1.1
 	github.com/kubernetes-csi/csi-test v2.0.0+incompatible
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.0.0
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.7.1
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e
-	google.golang.org/grpc v1.34.0
+	google.golang.org/grpc v1.38.0
 	k8s.io/api v0.21.0
 	k8s.io/apimachinery v0.21.0
 	k8s.io/client-go v1.21.0
