@@ -148,7 +148,7 @@ github.com/kubernetes-csi/csi-proxy/client/apiversion
 github.com/kubernetes-csi/csi-proxy/client/groups/disk/v1
 github.com/kubernetes-csi/csi-proxy/client/groups/filesystem/v1
 github.com/kubernetes-csi/csi-proxy/client/groups/volume/v1
-# github.com/kubernetes-csi/csi-test v2.0.0+incompatible
+# github.com/kubernetes-csi/csi-test v2.2.0+incompatible
 ## explicit
 github.com/kubernetes-csi/csi-test/pkg/sanity
 github.com/kubernetes-csi/csi-test/utils

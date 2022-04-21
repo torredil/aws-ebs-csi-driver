@@ -7,7 +7,7 @@ require (
 	github.com/golang/protobuf v1.5.0
 	github.com/google/go-cmp v0.5.5
 	github.com/kubernetes-csi/csi-proxy/client v1.0.1
-	github.com/kubernetes-csi/csi-test v2.0.0+incompatible
+	github.com/kubernetes-csi/csi-test v2.2.0+incompatible
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.0.0
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.7.1
