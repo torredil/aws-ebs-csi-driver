@@ -14,4 +14,4 @@ jobs:
     steps:      
     - uses: Azure/container-scan@v0
       with:
-        image-name: public.ecr.aws/ebs-csi-driver/aws-ebs-csi-driver:v1.6.0
+        image-name: public.ecr.aws/ebs-csi-driver/aws-ebs-csi-driver:v1.6.1
