@@ -1,0 +1,17 @@
+name: "container-scan"
+
+on:
+  push:
+    branches: [ dev ]
+  pull_request:
+    branches: [ dev ]
+  schedule:
+    - cron: '0 */2 * * *'
+
+jobs:
+  build-secure-and-push:
+    runs-on: ubuntu-latest
+    steps:      
+    - uses: Azure/container-scan@v0
+      with:
+        image-name: public.ecr.aws/ebs-csi-driver/aws-ebs-csi-driver:v1.6.0
