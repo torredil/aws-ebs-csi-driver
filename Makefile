@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VERSION=v1.6.0
+VERSION=v1.6.1
 
 PKG=github.com/kubernetes-sigs/aws-ebs-csi-driver
 GIT_COMMIT?=$(shell git rev-parse HEAD)
@@ -26,7 +26,7 @@ GOPATH=$(shell go env GOPATH)
 GOOS=$(shell go env GOOS)
 GOBIN=$(shell pwd)/bin
 
-REGISTRY?=gcr.io/k8s-staging-provider-aws
+REGISTRY?=docker.io/torredil
 IMAGE?=$(REGISTRY)/aws-ebs-csi-driver
 TAG?=$(GIT_COMMIT)
 
@@ -34,15 +34,15 @@ OUTPUT_TYPE?=docker
 
 OS?=linux
 ARCH?=amd64
-OSVERSION?=amazon
+OSVERSION?=debian
 
 ALL_OS?=linux windows
 ALL_ARCH_linux?=amd64 arm64
-ALL_OSVERSION_linux?=amazon
+ALL_OSVERSION_linux?=debian
 ALL_OS_ARCH_OSVERSION_linux=$(foreach arch, $(ALL_ARCH_linux), $(foreach osversion, ${ALL_OSVERSION_linux}, linux-$(arch)-${osversion}))
 
 ALL_ARCH_windows?=amd64
-ALL_OSVERSION_windows?=1809 2004 20H2
+ALL_OSVERSION_windows?=ltsc2019
 ALL_OS_ARCH_OSVERSION_windows=$(foreach arch, $(ALL_ARCH_windows), $(foreach osversion, ${ALL_OSVERSION_windows}, windows-$(arch)-${osversion}))
 
 ALL_OS_ARCH_OSVERSION=$(foreach os, $(ALL_OS), ${ALL_OS_ARCH_OSVERSION_${os}})
@@ -96,10 +96,9 @@ sub-image-%:
 image: .image-$(TAG)-$(OS)-$(ARCH)-$(OSVERSION)
 .image-$(TAG)-$(OS)-$(ARCH)-$(OSVERSION):
 	docker buildx build \
-		--no-cache-filter=linux-amazon \
 		--platform=$(OS)/$(ARCH) \
 		--progress=plain \
-		--target=$(OS)-$(OSVERSION) \
+		--target=$(OSVERSION) \
 		--output=type=$(OUTPUT_TYPE) \
 		-t=$(IMAGE):$(TAG)-$(OS)-$(ARCH)-$(OSVERSION) \
 		.
