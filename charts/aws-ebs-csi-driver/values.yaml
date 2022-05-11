@@ -5,7 +5,7 @@
 image:
   repository: docker.io/torredil/aws-ebs-csi-driver
   # Overrides the image tag whose default is v{{ .Chart.AppVersion }}
-  tag: "24ad8ef747b396a07ef757cbf1dab5bbde015179"
+  tag: "406e85b0d423fa8ad7a1ffea45f1bf10472696be"
   pullPolicy: IfNotPresent
 
 # -- Custom labels to add into metadata

@@ -26,7 +26,7 @@ GOPATH=$(shell go env GOPATH)
 GOOS=$(shell go env GOOS)
 GOBIN=$(shell pwd)/bin
 
-REGISTRY?=docker.io/torredil
+REGISTRY?=gcr.io/k8s-staging-provider-aws
 IMAGE?=$(REGISTRY)/aws-ebs-csi-driver
 TAG?=$(GIT_COMMIT)
 
@@ -34,16 +34,12 @@ OUTPUT_TYPE?=docker
 
 OS?=linux
 ARCH?=amd64
-OSVERSION?=debian
+OSVERSION?=distroless
 
-ALL_OS?=linux windows
+ALL_OS?=linux
 ALL_ARCH_linux?=amd64 arm64
-ALL_OSVERSION_linux?=debian
+ALL_OSVERSION_linux?=distroless
 ALL_OS_ARCH_OSVERSION_linux=$(foreach arch, $(ALL_ARCH_linux), $(foreach osversion, ${ALL_OSVERSION_linux}, linux-$(arch)-${osversion}))
-
-ALL_ARCH_windows?=amd64
-ALL_OSVERSION_windows?=ltsc2019
-ALL_OS_ARCH_OSVERSION_windows=$(foreach arch, $(ALL_ARCH_windows), $(foreach osversion, ${ALL_OSVERSION_windows}, windows-$(arch)-${osversion}))
 
 ALL_OS_ARCH_OSVERSION=$(foreach os, $(ALL_OS), ${ALL_OS_ARCH_OSVERSION_${os}})
 
@@ -98,7 +94,7 @@ image: .image-$(TAG)-$(OS)-$(ARCH)-$(OSVERSION)
 	docker buildx build \
 		--platform=$(OS)/$(ARCH) \
 		--progress=plain \
-		--target=$(OSVERSION) \
+		--target=$(OS)-$(OSVERSION) \
 		--output=type=$(OUTPUT_TYPE) \
 		-t=$(IMAGE):$(TAG)-$(OS)-$(ARCH)-$(OSVERSION) \
 		.

@@ -22,47 +22,50 @@ ARG TARGETOS
 ARG TARGETARCH
 RUN OS=$TARGETOS ARCH=$TARGETARCH make $TARGETOS/$TARGETARCH
 
-# Start from Kubernetes Debian base.
-FROM k8s.gcr.io/build-image/debian-base:buster-v1.9.0 AS debian1
-# Install necessary dependencies
-RUN clean-install ca-certificates e2fsprogs xfsprogs util-linux mount udev
-# Since we're leveraging apt to pull in dependencies, we use `gcr.io/distroless/base` because it includes glibc.
-FROM gcr.io/distroless/base-debian11 AS debian
-# Copy necessary dependencies into distroless base.
+FROM k8s.gcr.io/build-image/debian-base:bullseye-v1.2.0 as debian
+RUN clean-install util-linux e2fsprogs mount ca-certificates udev xfsprogs
+
+FROM gcr.io/distroless/static-debian11 AS distroless-amd64
+ENV LIB_DIRECTORY /lib/x86_64-linux-gnu/
+COPY --from=debian /lib64/ld-linux-x86-64.so.2 /lib64/
+
+FROM gcr.io/distroless/static-debian11 AS distroless-arm64
+ENV LIB_DIRECTORY /lib/aarch64-linux-gnu/
+COPY --from=debian /lib/ld-linux-aarch64.so.1 /lib/
+
+FROM distroless-$TARGETARCH as linux-distroless
 COPY --from=builder /go/src/github.com/kubernetes-sigs/aws-ebs-csi-driver/bin/aws-ebs-csi-driver /bin/aws-ebs-csi-driver
-COPY --from=debian1 /etc/mke2fs.conf /etc/mke2fs.conf
-COPY --from=debian1 /lib/udev/scsi_id /lib/udev_containerized/scsi_id
-COPY --from=debian1 /bin/mount /bin/mount
-COPY --from=debian1 /bin/umount /bin/umount
-COPY --from=debian1 /sbin/blkid /sbin/blkid
-COPY --from=debian1 /sbin/blockdev /sbin/blockdev
-COPY --from=debian1 /sbin/dumpe2fs /sbin/dumpe2fs
-COPY --from=debian1 /sbin/e* /sbin/
-COPY --from=debian1 /sbin/e2fsck /sbin/e2fsck
-COPY --from=debian1 /sbin/fsck /sbin/fsck
-COPY --from=debian1 /sbin/fsck* /sbin/
-COPY --from=debian1 /sbin/fsck.xfs /sbin/fsck.xfs
-COPY --from=debian1 /sbin/mke2fs /sbin/mke2fs
-COPY --from=debian1 /sbin/mkfs* /sbin/
-COPY --from=debian1 /sbin/resize2fs /sbin/resize2fs
-COPY --from=debian1 /sbin/xfs_repair /sbin/xfs_repair
-COPY --from=debian1 /usr/include/xfs /usr/include/xfs
-COPY --from=debian1 /usr/lib/xfsprogs/xfs* /usr/lib/xfsprogs/
-COPY --from=debian1 /usr/sbin/xfs* /usr/sbin/
-
-# Copy x86 shared libraries into distroless base.
-COPY --from=debian1 /lib/x86_64-linux-gnu/libblkid.so.1 /lib/x86_64-linux-gnu/libblkid.so.1
-COPY --from=debian1 /lib/x86_64-linux-gnu/libcom_err.so.2 /lib/x86_64-linux-gnu/libcom_err.so.2
-COPY --from=debian1 /lib/x86_64-linux-gnu/libext2fs.so.2 /lib/x86_64-linux-gnu/libext2fs.so.2
-COPY --from=debian1 /lib/x86_64-linux-gnu/libe2p.so.2 /lib/x86_64-linux-gnu/libe2p.so.2
-COPY --from=debian1 /lib/x86_64-linux-gnu/libmount.so.1 /lib/x86_64-linux-gnu/libmount.so.1
-COPY --from=debian1 /lib/x86_64-linux-gnu/libpcre.so.3 /lib/x86_64-linux-gnu/libpcre.so.3
-COPY --from=debian1 /lib/x86_64-linux-gnu/libreadline.so.5 /lib/x86_64-linux-gnu/libreadline.so.5
-COPY --from=debian1 /lib/x86_64-linux-gnu/libselinux.so.1 /lib/x86_64-linux-gnu/libselinux.so.1
-COPY --from=debian1 /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.6
-COPY --from=debian1 /lib/x86_64-linux-gnu/libuuid.so.1 /lib/x86_64-linux-gnu/libuuid.so.1
+COPY --from=debian /sbin/blkid \
+                   /sbin/blockdev \
+                   /sbin/dumpe2fs \
+                   /sbin/resize2fs \
+                   /sbin/fsck /sbin/fsck.ext4 /sbin/fsck.ext3 /sbin/fsck.xfs \
+                   /sbin/mkfs /sbin/mkfs.ext4 /sbin/mkfs.ext3 /sbin/mkfs.xfs \
+                   /sbin/
+COPY --from=debian /usr/sbin/xfs_io \
+                   /usr/sbin/xfs_growfs \
+                   /usr/sbin/
+COPY --from=debian /bin/umount /bin/umount
+COPY --from=debian /bin/mount /bin/mount
+COPY --from=debian ${LIB_DIRECTORY}/libcom_err.so.2 \
+                   ${LIB_DIRECTORY}/libc.so.6 \
+                   ${LIB_DIRECTORY}/libdevmapper.so.1.02.1 \
+                   ${LIB_DIRECTORY}/libdl.so.2 \
+                   ${LIB_DIRECTORY}/libe2p.so.2 \
+                   ${LIB_DIRECTORY}/libext2fs.so.2 \
+                   ${LIB_DIRECTORY}/libm.so.6 \
+                   ${LIB_DIRECTORY}/libpthread.so.0 \
+                   ${LIB_DIRECTORY}/libselinux.so.1 \
+                   ${LIB_DIRECTORY}/libtinfo.so.6 \
+                   ${LIB_DIRECTORY}/
+COPY --from=debian /usr/${LIB_DIRECTORY}/libblkid.so.1 \
+                   /usr/${LIB_DIRECTORY}/libbsd.so.0 \
+                   /usr/${LIB_DIRECTORY}/libedit.so.2 \
+                   /usr/${LIB_DIRECTORY}/libinih.so.1 \
+                   /usr/${LIB_DIRECTORY}/libmd.so.0 \
+                   /usr/${LIB_DIRECTORY}/libmount.so.1 \
+                   /usr/${LIB_DIRECTORY}/libpcre2-8.so.0 \
+                   /usr/${LIB_DIRECTORY}/libudev.so.1 \
+                   /usr/${LIB_DIRECTORY}/libuuid.so.1 \
+                   /usr/${LIB_DIRECTORY}/
 ENTRYPOINT ["/bin/aws-ebs-csi-driver"]
-
-FROM mcr.microsoft.com/windows/servercore:ltsc2019 AS ltsc2019
-COPY --from=builder /go/src/github.com/kubernetes-sigs/aws-ebs-csi-driver/bin/aws-ebs-csi-driver.exe /aws-ebs-csi-driver.exe
-ENTRYPOINT ["/aws-ebs-csi-driver.exe"]
