@@ -1,5 +1,9 @@
 # Helm chart
 
+## v2.6.9
+
+* Update csi-snapshotter version to `v6.0.1`
+
 ## v2.6.8
 
 * Bump app/driver to version `v1.6.2`
