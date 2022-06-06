@@ -5,7 +5,7 @@ require (
 	github.com/container-storage-interface/spec v1.3.0
 	github.com/golang/mock v1.5.0
 	github.com/golang/protobuf v1.5.0
-	github.com/google/go-cmp v0.5.5
+	github.com/google/go-cmp v0.5.8
 	github.com/kubernetes-csi/csi-proxy/client v1.0.1
 	github.com/kubernetes-csi/csi-test v2.0.0+incompatible
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.0.0
