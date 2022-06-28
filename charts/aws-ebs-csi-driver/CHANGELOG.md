@@ -1,5 +1,8 @@
 # Helm chart
 
+## v2.8.0
+* Feature: Support custom affinity definition on node daemon set
+
 ## v2.7.1
 * Bump app/driver to version `v1.8.0`
 
