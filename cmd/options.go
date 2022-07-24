@@ -17,15 +17,15 @@ limitations under the License.
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/cmd/options"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver"
-
-	"k8s.io/klog"
+	"github.com/spf13/pflag"
+	"k8s.io/component-base/logs"
+	"k8s.io/klog/v2"
 )
 
 // Options is the combined set of options for all operating modes.
@@ -42,7 +42,7 @@ var osExit = os.Exit
 
 // GetOptions parses the command line options and returns a struct that contains
 // the parsed options.
-func GetOptions(fs *flag.FlagSet) *Options {
+func GetOptions(fs *pflag.FlagSet) *Options {
 	var (
 		version = fs.Bool("version", false, "Print the version and exit.")
 
@@ -52,11 +52,32 @@ func GetOptions(fs *flag.FlagSet) *Options {
 		serverOptions     = options.ServerOptions{}
 		controllerOptions = options.ControllerOptions{}
 		nodeOptions       = options.NodeOptions{}
+		logOptions        = logs.NewOptions()
 	)
 
 	serverOptions.AddFlags(fs)
-	klog.InitFlags(fs)
+	//klog.InitFlags(fs)
+	logs.InitLogs()
 
+	if err := logOptions.ValidateAndApply(nil); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
+	}
+
+	logs.AddFlags(fs, logs.SkipLoggingConfigurationFlags())
+	logOptions.AddFlags(fs)
+
+	// The JSON log format requires the Klog format in klog, otherwise log lines
+	// are serialized twice, e.g.:
+	// { ... "msg":"controller/cluster \"msg\"=\"Starting workers\"\n"}
+
+	// if logOptions.Config.Format == logs.JSONLogFormat {
+	// 	ctrl.SetLogger(klogr.NewWithOptions(klogr.WithFormat(klogr.FormatKlog)))
+	// 	klog.Infof("triggered test")
+	// } else {
+	// 	ctrl.SetLogger(klogr.New())
+	// }
+	klog.InfoS("Pod status updated", "pod", "pod", "status", "status")
 	if len(os.Args) > 1 {
 		cmd := os.Args[1]
 

@@ -17,8 +17,7 @@ limitations under the License.
 package options
 
 import (
-	"flag"
-
+	"github.com/spf13/pflag"
 	cliflag "k8s.io/component-base/cli/flag"
 )
 
@@ -39,7 +38,7 @@ type ControllerOptions struct {
 	WarnOnInvalidTag bool
 }
 
-func (s *ControllerOptions) AddFlags(fs *flag.FlagSet) {
+func (s *ControllerOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.Var(cliflag.NewMapStringString(&s.ExtraTags), "extra-tags", "Extra tags to attach to each dynamically provisioned resource. It is a comma separated list of key value pairs like '<key1>=<value1>,<key2>=<value2>'")
 	fs.Var(cliflag.NewMapStringString(&s.ExtraVolumeTags), "extra-volume-tags", "DEPRECATED: Please use --extra-tags instead. Extra volume tags to attach to each dynamically provisioned volume. It is a comma separated list of key value pairs like '<key1>=<value1>,<key2>=<value2>'")
 	fs.StringVar(&s.KubernetesClusterID, "k8s-tag-cluster-id", "", "ID of the Kubernetes cluster used for tagging provisioned EBS volumes (optional).")

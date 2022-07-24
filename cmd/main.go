@@ -17,19 +17,21 @@ limitations under the License.
 package main
 
 import (
-	"flag"
 	"net/http"
 
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver"
+	"github.com/spf13/pflag"
 	"k8s.io/component-base/metrics/legacyregistry"
-
 	"k8s.io/klog"
 )
 
 func main() {
-	fs := flag.NewFlagSet("aws-ebs-csi-driver", flag.ExitOnError)
-	options := GetOptions(fs)
+	//fs := flag.NewFlagSet("aws-ebs-csi-driver", flag.ExitOnError)
+	options := GetOptions(pflag.CommandLine)
+	//pflag.CommandLine.SetNormalizeFunc(cliflag.WordSepNormalizeFunc)
+	//pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	//pflag.Parse()
 
 	cloud.RegisterMetrics()
 	if options.ServerOptions.HttpEndpoint != "" {

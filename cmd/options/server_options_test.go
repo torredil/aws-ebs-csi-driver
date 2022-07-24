@@ -17,8 +17,9 @@ limitations under the License.
 package options
 
 import (
-	"flag"
 	"testing"
+
+	"github.com/spf13/pflag"
 )
 
 func TestServerOptions(t *testing.T) {
@@ -40,13 +41,12 @@ func TestServerOptions(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		flagSet := flag.NewFlagSet("test-flagset", flag.ContinueOnError)
 		serverOptions := &ServerOptions{}
 
 		t.Run(tc.name, func(t *testing.T) {
-			serverOptions.AddFlags(flagSet)
+			serverOptions.AddFlags(pflag.CommandLine)
 
-			flag := flagSet.Lookup(tc.flag)
+			flag := pflag.CommandLine.Lookup(tc.flag)
 			found := flag != nil
 			if found != tc.found {
 				t.Fatalf("result not equal\ngot:\n%v\nexpected:\n%v", found, tc.found)

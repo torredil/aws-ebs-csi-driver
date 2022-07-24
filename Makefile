@@ -37,7 +37,7 @@ ARCH?=amd64
 OSVERSION?=amazon
 
 ALL_OS?=linux windows
-ALL_ARCH_linux?=amd64 arm64
+ALL_ARCH_linux?=amd64
 ALL_OSVERSION_linux?=amazon
 ALL_OS_ARCH_OSVERSION_linux=$(foreach arch, $(ALL_ARCH_linux), $(foreach osversion, ${ALL_OSVERSION_linux}, linux-$(arch)-${osversion}))
 
@@ -79,7 +79,7 @@ create-manifest:
 # sed expression:
 # LHS: match 0 or more not space characters
 # RHS: replace with $(IMAGE):$(TAG)-& where & is what was matched on LHS
-	docker manifest create --amend $(IMAGE):$(TAG) $(shell echo $(ALL_OS_ARCH_OSVERSION) | sed -e "s~[^ ]*~$(IMAGE):$(TAG)\-&~g")
+	docker manifest create --amend $(IMAGE):$(TAG) $(shell echo $(ALL_OS_ARCH_OSVERSION_linux) | sed -e "s~[^ ]*~$(IMAGE):$(TAG)\-&~g")
 
 # Only linux for OUTPUT_TYPE=docker because windows image cannot be exported
 # "Currently, multi-platform images cannot be exported with the docker export type. The most common usecase for multi-platform images is to directly push to a registry (see registry)."
@@ -87,7 +87,7 @@ create-manifest:
 .PHONY: all-image-docker
 all-image-docker: $(addprefix sub-image-docker-,$(ALL_OS_ARCH_OSVERSION_linux))
 .PHONY: all-image-registry
-all-image-registry: $(addprefix sub-image-registry-,$(ALL_OS_ARCH_OSVERSION))
+all-image-registry: $(addprefix sub-image-registry-,$(ALL_OS_ARCH_OSVERSION_linux))
 
 sub-image-%:
 	$(MAKE) OUTPUT_TYPE=$(call word-hyphen,$*,1) OS=$(call word-hyphen,$*,2) ARCH=$(call word-hyphen,$*,3) OSVERSION=$(call word-hyphen,$*,4) image

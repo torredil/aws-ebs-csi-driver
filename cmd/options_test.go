@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver"
+	"github.com/spf13/pflag"
 )
 
 func TestGetOptions(t *testing.T) {
@@ -70,7 +71,7 @@ func TestGetOptions(t *testing.T) {
 		defer func() { os.Args = oldArgs }()
 		os.Args = args
 
-		options := GetOptions(flagSet)
+		options := GetOptions(pflag.CommandLine)
 
 		if withServerOptions {
 			endpointFlag := flagSet.Lookup(endpointFlagName)
@@ -175,8 +176,7 @@ func TestGetOptions(t *testing.T) {
 					"-version",
 				}
 
-				flagSet := flag.NewFlagSet("test-flagset", flag.ContinueOnError)
-				_ = GetOptions(flagSet)
+				_ = GetOptions(pflag.CommandLine)
 
 				if exitCode != 0 {
 					t.Fatalf("expected exit code 0 but got %d", exitCode)

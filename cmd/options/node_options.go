@@ -16,9 +16,7 @@ limitations under the License.
 
 package options
 
-import (
-	"flag"
-)
+import "github.com/spf13/pflag"
 
 // NodeOptions contains options and configuration settings for the node service.
 type NodeOptions struct {
@@ -33,6 +31,6 @@ type NodeOptions struct {
 	VolumeAttachLimit int64
 }
 
-func (o *NodeOptions) AddFlags(fs *flag.FlagSet) {
+func (o *NodeOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.Int64Var(&o.VolumeAttachLimit, "volume-attach-limit", -1, "Value for the maximum number of volumes attachable per node. If specified, the limit applies to all nodes. If not specified, the value is approximated from the instance type.")
 }

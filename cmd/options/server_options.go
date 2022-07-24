@@ -17,9 +17,8 @@ limitations under the License.
 package options
 
 import (
-	"flag"
-
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver"
+	"github.com/spf13/pflag"
 )
 
 // ServerOptions contains options and configuration settings for the driver server.
@@ -30,7 +29,7 @@ type ServerOptions struct {
 	HttpEndpoint string
 }
 
-func (s *ServerOptions) AddFlags(fs *flag.FlagSet) {
+func (s *ServerOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&s.Endpoint, "endpoint", driver.DefaultCSIEndpoint, "Endpoint for the CSI driver server")
 	fs.StringVar(&s.HttpEndpoint, "http-endpoint", "", "The TCP network address where the HTTP server for metrics will listen (example: `:8080`). The default is empty string, which means the server is disabled.")
 }
