@@ -4,14 +4,13 @@ on:
     tags: ['*']
 jobs:
   ecr-private:
-    name: Push to ECR
+    name: Push to ECR Private
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v2
 
     - name: Set up Docker Buildx
-      id: buildx
       uses: docker/setup-buildx-action@v1
 
     - name: Set up QEMU
@@ -29,7 +28,6 @@ jobs:
         role-skip-session-tagging: true
 
     - name: Login to Amazon ECR
-      id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
 
     - name: Set environment variables
@@ -41,3 +39,48 @@ jobs:
 
     - name: Build, tag, and push manifest to Amazon ECR
       run: make all-push
+  
+  ecr-public:
+    name: Push to ECR Public
+    runs-on: ubuntu-latest
+    environment: ecr-public
+    needs: ecr-private
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+    
+    - name: Set up crane
+      uses: imjasonh/setup-crane@v0.1
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-west-2
+        role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+        role-duration-seconds: 1800
+        role-session-name: GitHubCI
+        role-skip-session-tagging: true
+
+    - name: Login to Amazon ECR
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Login to Amazon ECR Public
+      uses: aws-actions/amazon-ecr-login@v1
+      with:
+        registry-type: public
+
+    - name: Copy manifest to ECR Public
+      env:
+        ECR_PRIVATE_REPOSITORY: ${{ secrets.ECR_PRIVATE_REPOSITORY }}
+        ECR_PUBLIC_REPOSITORY: ${{ secrets.ECR_PUBLIC_REPOSITORY }}
+      run: crane copy ${ECR_PRIVATE_REPOSITORY}:${GITHUB_REF_NAME} ${ECR_PUBLIC_REPOSITORY}:${GITHUB_REF_NAME} 
+  
