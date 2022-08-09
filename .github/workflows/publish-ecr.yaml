@@ -82,6 +82,6 @@ jobs:
       env:
         ECR_PRIVATE_REPOSITORY: ${{ secrets.ECR_PRIVATE_REPOSITORY }}
         ECR_PUBLIC_REPOSITORY: ${{ secrets.ECR_PUBLIC_REPOSITORY }}
-      run: crane copy ${ECR_PRIVATE_REPOSITORY}/aws-ebs-csi-driver:${GITHUB_NAME_REF} ${ECR_PUBLIC_REPOSITORY}/aws-ebs-csi-driver:${GITHUB_NAME_REF} 
+      run: crane copy ${ECR_PRIVATE_REPOSITORY}/aws-ebs-csi-driver:${GITHUB_REF_NAME} ${ECR_PUBLIC_REPOSITORY}/aws-ebs-csi-driver:${GITHUB_REF_NAME} 
  
   
