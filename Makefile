@@ -75,7 +75,7 @@ push-manifest: create-manifest
 	docker manifest push --purge $(IMAGE):$(TAG)
 
 .PHONY: create-manifest
-create-manifest:
+create-manifest: all-image-registry
 # sed expression:
 # LHS: match 0 or more not space characters
 # RHS: replace with $(IMAGE):$(TAG)-& where & is what was matched on LHS
