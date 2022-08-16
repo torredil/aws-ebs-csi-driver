@@ -182,7 +182,6 @@ test-e2e-migration:
 	TEST_PATH=./tests/e2e-kubernetes/... \
 	GINKGO_FOCUS="\[ebs-csi-migration\]" \
 	GINKGO_SKIP="\[Disruptive\]|Pre-provisioned" \
-	EBS_CHECK_MIGRATION=true \
 	./hack/e2e/run.sh
 
 .PHONY: test-e2e-external
@@ -199,7 +198,6 @@ test-e2e-external:
 .PHONY: test-e2e-external-eks
 test-e2e-external-eks:
 	CLUSTER_TYPE=eksctl \
-	K8S_VERSION="1.20" \
 	HELM_VALUES_FILE="./hack/values_eksctl.yaml" \
 	HELM_EXTRA_FLAGS='--set=controller.k8sTagClusterId=$$CLUSTER_NAME' \
 	EBS_INSTALL_SNAPSHOT="true" \

@@ -17,7 +17,6 @@
 set -euo pipefail
 
 BASE_DIR=$(dirname "$(realpath "${BASH_SOURCE[0]}")")
-source "${BASE_DIR}"/ebs.sh
 source "${BASE_DIR}"/ecr.sh
 source "${BASE_DIR}"/eksctl.sh
 source "${BASE_DIR}"/helm.sh
@@ -50,14 +49,15 @@ IMAGE_TAG=${IMAGE_TAG:-${TEST_ID}}
 
 # kops: must include patch version (e.g. 1.19.1)
 # eksctl: mustn't include patch version (e.g. 1.19)
-K8S_VERSION=${K8S_VERSION:-1.20.8}
+K8S_VERSION_KOPS=${K8S_VERSION_KOPS:-${K8S_VERSION:-1.23.9}}
+K8S_VERSION_EKSCTL=${K8S_VERSION_EKSCTL:-${K8S_VERSION:-1.23}}
 
 KOPS_VERSION=${KOPS_VERSION:-1.23.0}
 KOPS_STATE_FILE=${KOPS_STATE_FILE:-s3://k8s-kops-csi-e2e}
 KOPS_PATCH_FILE=${KOPS_PATCH_FILE:-./hack/kops-patch.yaml}
 KOPS_PATCH_NODE_FILE=${KOPS_PATCH_NODE_FILE:-./hack/kops-patch-node.yaml}
 
-EKSCTL_VERSION=${EKSCTL_VERSION:-0.101.0}
+EKSCTL_VERSION=${EKSCTL_VERSION:-0.109.0-rc.0}
 EKSCTL_PATCH_FILE=${EKSCTL_PATCH_FILE:-./hack/eksctl-patch.yaml}
 EKSCTL_ADMIN_ROLE=${EKSCTL_ADMIN_ROLE:-}
 # Creates a windows node group. The windows ami doesn't (yet) install csi-proxy
@@ -76,7 +76,6 @@ TEST_EXTRA_FLAGS=${TEST_EXTRA_FLAGS:-}
 
 EBS_INSTALL_SNAPSHOT=${EBS_INSTALL_SNAPSHOT:-"false"}
 EBS_INSTALL_SNAPSHOT_VERSION=${EBS_INSTALL_SNAPSHOT_VERSION:-"v4.1.1"}
-EBS_CHECK_MIGRATION=${EBS_CHECK_MIGRATION:-"false"}
 
 CLEAN=${CLEAN:-"true"}
 
@@ -122,7 +121,7 @@ if [[ "${CLUSTER_TYPE}" == "kops" ]]; then
     "$ZONES" \
     "$NODE_COUNT" \
     "$INSTANCE_TYPE" \
-    "$K8S_VERSION" \
+    "$K8S_VERSION_KOPS" \
     "$CLUSTER_FILE" \
     "$KUBECONFIG" \
     "$KOPS_PATCH_FILE" \
@@ -138,7 +137,7 @@ elif [[ "${CLUSTER_TYPE}" == "eksctl" ]]; then
     "$EKSCTL_BIN" \
     "$ZONES" \
     "$INSTANCE_TYPE" \
-    "$K8S_VERSION" \
+    "$K8S_VERSION_EKSCTL" \
     "$CLUSTER_FILE" \
     "$KUBECONFIG" \
     "$EKSCTL_PATCH_FILE" \
@@ -197,21 +196,7 @@ TEST_PASSED=$?
 set -e
 set +x
 loudecho "TEST_PASSED: ${TEST_PASSED}"
-
 OVERALL_TEST_PASSED="${TEST_PASSED}"
-if [[ "${EBS_CHECK_MIGRATION}" == true ]]; then
-  exec 5>&1
-  OUTPUT=$(ebs_check_migration "${KUBECONFIG}" | tee /dev/fd/5)
-  MIGRATION_PASSED=$(echo "${OUTPUT}" | tail -1)
-  loudecho "MIGRATION_PASSED: ${MIGRATION_PASSED}"
-  if [ "${TEST_PASSED}" == 0 ] && [ "${MIGRATION_PASSED}" == 0 ]; then
-    loudecho "Both test and migration passed"
-    OVERALL_TEST_PASSED=0
-  else
-    loudecho "One of test or migration failed"
-    OVERALL_TEST_PASSED=1
-  fi
-fi
 
 PODS=$(kubectl get pod -n kube-system -l "app.kubernetes.io/name=${DRIVER_NAME},app.kubernetes.io/instance=${DRIVER_NAME}" -o json --kubeconfig "${KUBECONFIG}" | jq -r .items[].metadata.name)
 
