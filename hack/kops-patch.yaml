@@ -164,4 +164,5 @@ spec:
     anonymousAuth: false
   cloudConfig:
     awsEBSCSIDriver:
-      enabled: false
+      # TODO: Remove when kops officially supports disabling the driver for 1.24+ clusters
+      version: "fake-version"
