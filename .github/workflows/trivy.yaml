@@ -1,6 +1,6 @@
 name: Trivy Scanner
 on:
-  pull-request:
+  pull_request:
   
 jobs:
   build:
