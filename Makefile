@@ -175,15 +175,9 @@ test-e2e-multi-az:
 
 .PHONY: test-e2e-migration
 test-e2e-migration:
-	AWS_REGION=us-west-2 \
-	AWS_AVAILABILITY_ZONES=us-west-2a,us-west-2b,us-west-2c \
-	HELM_EXTRA_FLAGS='--set=controller.k8sTagClusterId=$$CLUSTER_NAME' \
-	EBS_INSTALL_SNAPSHOT="true" \
-	TEST_PATH=./tests/e2e-kubernetes/... \
-	GINKGO_FOCUS="\[ebs-csi-migration\]" \
-	GINKGO_SKIP="\[Disruptive\]|Pre-provisioned" \
-	EBS_CHECK_MIGRATION=true \
-	./hack/e2e/run.sh
+# TODO: Remove once this test is removed from test-infra upstream
+# https://github.com/kubernetes/test-infra/blob/master/config/jobs/kubernetes-sigs/aws-ebs-csi-driver/aws-ebs-csi-driver-presubmits.yaml
+	echo "succeed"
 
 .PHONY: test-e2e-external
 test-e2e-external:
@@ -193,13 +187,13 @@ test-e2e-external:
 	EBS_INSTALL_SNAPSHOT="true" \
 	TEST_PATH=./tests/e2e-kubernetes/... \
 	GINKGO_FOCUS="External.Storage" \
-	GINKGO_SKIP="\[Disruptive\]|\[Serial\]" \
+	GINKGO_SKIP="\[Disruptive\]|\[Serial\]|provisioning should mount multiple PV pointing to the same storage on the same node" \
 	./hack/e2e/run.sh
 
 .PHONY: test-e2e-external-eks
 test-e2e-external-eks:
 	CLUSTER_TYPE=eksctl \
-	K8S_VERSION="1.20" \
+	K8S_VERSION="1.23" \
 	HELM_VALUES_FILE="./hack/values_eksctl.yaml" \
 	HELM_EXTRA_FLAGS='--set=controller.k8sTagClusterId=$$CLUSTER_NAME' \
 	EBS_INSTALL_SNAPSHOT="true" \
@@ -208,7 +202,7 @@ test-e2e-external-eks:
 	AWS_AVAILABILITY_ZONES=us-west-2a,us-west-2b \
 	TEST_PATH=./tests/e2e-kubernetes/... \
 	GINKGO_FOCUS="External.Storage" \
-	GINKGO_SKIP="\[Disruptive\]|\[Serial\]" \
+	GINKGO_SKIP="\[Disruptive\]|\[Serial\]|provisioning should mount multiple PV pointing to the same storage on the same node" \
 	./hack/e2e/run.sh
 
 .PHONY: verify-vendor

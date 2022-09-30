@@ -50,14 +50,14 @@ IMAGE_TAG=${IMAGE_TAG:-${TEST_ID}}
 
 # kops: must include patch version (e.g. 1.19.1)
 # eksctl: mustn't include patch version (e.g. 1.19)
-K8S_VERSION=${K8S_VERSION:-1.20.8}
+K8S_VERSION=${K8S_VERSION:-1.25.0}
 
-KOPS_VERSION=${KOPS_VERSION:-1.23.0}
+KOPS_VERSION=${KOPS_VERSION:-1.25.0}
 KOPS_STATE_FILE=${KOPS_STATE_FILE:-s3://k8s-kops-csi-e2e}
 KOPS_PATCH_FILE=${KOPS_PATCH_FILE:-./hack/kops-patch.yaml}
 KOPS_PATCH_NODE_FILE=${KOPS_PATCH_NODE_FILE:-./hack/kops-patch-node.yaml}
 
-EKSCTL_VERSION=${EKSCTL_VERSION:-0.101.0}
+EKSCTL_VERSION=${EKSCTL_VERSION:-0.112.0}
 EKSCTL_PATCH_FILE=${EKSCTL_PATCH_FILE:-./hack/eksctl-patch.yaml}
 EKSCTL_ADMIN_ROLE=${EKSCTL_ADMIN_ROLE:-}
 # Creates a windows node group. The windows ami doesn't (yet) install csi-proxy
@@ -76,7 +76,6 @@ TEST_EXTRA_FLAGS=${TEST_EXTRA_FLAGS:-}
 
 EBS_INSTALL_SNAPSHOT=${EBS_INSTALL_SNAPSHOT:-"false"}
 EBS_INSTALL_SNAPSHOT_VERSION=${EBS_INSTALL_SNAPSHOT_VERSION:-"v4.1.1"}
-EBS_CHECK_MIGRATION=${EBS_CHECK_MIGRATION:-"false"}
 
 CLEAN=${CLEAN:-"true"}
 
@@ -105,7 +104,16 @@ loudecho "Installing ginkgo to ${BIN_DIR}"
 GINKGO_BIN=${BIN_DIR}/ginkgo
 if [[ ! -e ${GINKGO_BIN} ]]; then
   pushd /tmp
-  GOPATH=${TEST_DIR} GOBIN=${BIN_DIR} GO111MODULE=on go install github.com/onsi/ginkgo/ginkgo@v1.12.0
+  GOPATH=${TEST_DIR} GOBIN=${BIN_DIR} go install github.com/onsi/ginkgo/v2/ginkgo@v2.2.0
+  popd
+  ginkgo version
+fi
+
+loudecho "Installing kubetest2 to ${BIN_DIR}"
+KUBETEST2_BIN=${BIN_DIR}/kubetest2
+if [[ ! -e ${KUBETEST2_BIN} ]]; then
+  pushd /tmp
+  GOPATH=${TEST_DIR} GOBIN=${BIN_DIR} go install sigs.k8s.io/kubetest2@latest
   popd
 fi
 
@@ -189,29 +197,35 @@ fi
 loudecho "Driver deployment complete, time used: $secondUsed seconds"
 
 loudecho "Testing focus ${GINKGO_FOCUS}"
-eval "EXPANDED_TEST_EXTRA_FLAGS=$TEST_EXTRA_FLAGS"
-set -x
-set +e
-${GINKGO_BIN} -p -nodes="${GINKGO_NODES}" -v --focus="${GINKGO_FOCUS}" --skip="${GINKGO_SKIP}" "${TEST_PATH}" -- -kubeconfig="${KUBECONFIG}" -report-dir="${ARTIFACTS}" -gce-zone="${FIRST_ZONE}" "${EXPANDED_TEST_EXTRA_FLAGS}"
-TEST_PASSED=$?
-set -e
-set +x
-loudecho "TEST_PASSED: ${TEST_PASSED}"
 
-OVERALL_TEST_PASSED="${TEST_PASSED}"
-if [[ "${EBS_CHECK_MIGRATION}" == true ]]; then
-  exec 5>&1
-  OUTPUT=$(ebs_check_migration "${KUBECONFIG}" | tee /dev/fd/5)
-  MIGRATION_PASSED=$(echo "${OUTPUT}" | tail -1)
-  loudecho "MIGRATION_PASSED: ${MIGRATION_PASSED}"
-  if [ "${TEST_PASSED}" == 0 ] && [ "${MIGRATION_PASSED}" == 0 ]; then
-    loudecho "Both test and migration passed"
-    OVERALL_TEST_PASSED=0
-  else
-    loudecho "One of test or migration failed"
-    OVERALL_TEST_PASSED=1
-  fi
+if [[ $TEST_PATH == "./tests/e2e-kubernetes/..." ]]; then
+  pushd $(pwd)/tests/e2e-kubernetes
+  packageVersion=$(echo $(cut -d '.' -f 1,2 <<< $KOPS_VERSION))
+  
+  loudecho "TESTING KUBETEST2"
+    kubetest2 noop \
+      --run-id="e2e-kubernetes" \
+      --test=ginkgo \
+      -- \
+      --skip-regex="${GINKGO_SKIP}" \
+      --focus-regex="${GINKGO_FOCUS}" \
+      --test-package-version=$(curl https://storage.googleapis.com/kubernetes-release/release/stable-$packageVersion.txt) \
+      --parallel=25 \
+      --test-args="-storage.testdriver=${PWD}/manifests.yaml -kubeconfig=$KUBECONFIG"
+  popd
 fi
+
+if [[ $TEST_PATH == "./tests/e2e/..." ]]; then
+  eval "EXPANDED_TEST_EXTRA_FLAGS=$TEST_EXTRA_FLAGS"
+  set -x
+  set +e
+  ${GINKGO_BIN} -p -nodes="${GINKGO_NODES}" -v --focus="${GINKGO_FOCUS}" --skip="${GINKGO_SKIP}" "${TEST_PATH}" -- -kubeconfig="${KUBECONFIG}" -report-dir="${ARTIFACTS}" -gce-zone="${FIRST_ZONE}" "${EXPANDED_TEST_EXTRA_FLAGS}"
+  set -e
+  set +x
+fi
+
+TEST_PASSED=$?
+OVERALL_TEST_PASSED="${TEST_PASSED}"
 
 PODS=$(kubectl get pod -n kube-system -l "app.kubernetes.io/name=${DRIVER_NAME},app.kubernetes.io/instance=${DRIVER_NAME}" -o json --kubeconfig "${KUBECONFIG}" | jq -r .items[].metadata.name)
 
