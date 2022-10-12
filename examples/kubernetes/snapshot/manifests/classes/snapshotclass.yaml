@@ -4,3 +4,7 @@ metadata:
   name: csi-aws-vsc
 driver: ebs.csi.aws.com
 deletionPolicy: Delete
+parameters:
+  fsrAvailabilityZone_1: "us-east-1a"
+  fsrAvailabilityZone_2: "us-east-1b"
+  fsrAvailabilityZone_3: "us-east-1c"

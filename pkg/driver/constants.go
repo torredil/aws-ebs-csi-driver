@@ -77,6 +77,13 @@ const (
 	TagKeyPrefix = "tagSpecification"
 )
 
+// constants of keys in snapshot parameters
+const (
+	// FastSnapShotRestorePrefix contains the prefix of a snapshot parameter that designates it as
+	// a tag to be attached to the resource
+	FastSnapShotRestorePrefix = "fsrAvailabilityZone"
+)
+
 // constants for volume tags and their values
 const (
 	// ResourceLifecycleTagPrefix is prefix of tag for provisioned EBS volume that

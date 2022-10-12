@@ -875,6 +875,22 @@ func (c *cloud) ec2SnapshotResponseToStruct(ec2Snapshot *ec2.Snapshot) *Snapshot
 	return snapshot
 }
 
+func (c *cloud) EnableFastSnapshotRestores(ctx context.Context, availabilityZones []*string, snapshotID string) error {
+
+	request := &ec2.EnableFastSnapshotRestoresInput{
+		AvailabilityZones: availabilityZones,
+		SourceSnapshotIds: []*string{
+			aws.String(snapshotID),
+		},
+	}
+
+	_, err := c.ec2.EnableFastSnapshotRestoresWithContext(ctx, request)
+	if err != nil {
+		return fmt.Errorf("error enabling fast snapshot restore for snapshot %s: %v", snapshotID, err)
+	}
+	return nil
+}
+
 func (c *cloud) getVolume(ctx context.Context, request *ec2.DescribeVolumesInput) (*ec2.Volume, error) {
 	var volumes []*ec2.Volume
 	var nextToken *string

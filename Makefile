@@ -35,8 +35,8 @@ OS?=linux
 ARCH?=amd64
 OSVERSION?=amazon
 
-ALL_OS?=linux windows
-ALL_ARCH_linux?=amd64 arm64
+ALL_OS?=linux
+ALL_ARCH_linux?=amd64
 ALL_OSVERSION_linux?=amazon
 ALL_OS_ARCH_OSVERSION_linux=$(foreach arch, $(ALL_ARCH_linux), $(foreach osversion, ${ALL_OSVERSION_linux}, linux-$(arch)-${osversion}))
 
@@ -54,12 +54,12 @@ word-hyphen = $(word $2,$(subst -, ,$1))
 .PHONY: linux/$(ARCH) bin/aws-ebs-csi-driver
 linux/$(ARCH): bin/aws-ebs-csi-driver
 bin/aws-ebs-csi-driver: | bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -mod=mod -ldflags ${LDFLAGS} -o bin/aws-ebs-csi-driver ./cmd/
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -buildvcs=false -mod=mod -ldflags ${LDFLAGS} -o bin/aws-ebs-csi-driver ./cmd/
 
 .PHONY: windows/$(ARCH) bin/aws-ebs-csi-driver.exe
 windows/$(ARCH): bin/aws-ebs-csi-driver.exe
 bin/aws-ebs-csi-driver.exe: | bin
-	CGO_ENABLED=0 GOOS=windows GOARCH=$(ARCH) go build -mod=mod -ldflags ${LDFLAGS} -o bin/aws-ebs-csi-driver.exe ./cmd/
+	CGO_ENABLED=0 GOOS=windows GOARCH=$(ARCH) go build -buildvcs=false -mod=mod -ldflags ${LDFLAGS} -o bin/aws-ebs-csi-driver.exe ./cmd/
 
 # Builds all linux images (not windows because it can't be exported with OUTPUT_TYPE=docker)
 .PHONY: all
@@ -86,7 +86,7 @@ create-manifest: all-image-registry
 .PHONY: all-image-docker
 all-image-docker: $(addprefix sub-image-docker-,$(ALL_OS_ARCH_OSVERSION_linux))
 .PHONY: all-image-registry
-all-image-registry: $(addprefix sub-image-registry-,$(ALL_OS_ARCH_OSVERSION))
+all-image-registry: $(addprefix sub-image-registry-,$(ALL_OS_ARCH_OSVERSION_linux))
 
 sub-image-%:
 	$(MAKE) OUTPUT_TYPE=$(call word-hyphen,$*,1) OS=$(call word-hyphen,$*,2) ARCH=$(call word-hyphen,$*,3) OSVERSION=$(call word-hyphen,$*,4) image

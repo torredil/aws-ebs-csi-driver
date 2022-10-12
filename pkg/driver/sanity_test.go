@@ -285,6 +285,10 @@ func (c *fakeCloudProvider) ListSnapshots(ctx context.Context, volumeID string, 
 
 }
 
+func (c *fakeCloudProvider) EnableFastSnapshotRestores(ctx context.Context, availabilityZones []*string, snapshotID string) error {
+	return nil
+}
+
 func (c *fakeCloudProvider) ResizeDisk(ctx context.Context, volumeID string, newSize int64) (int64, error) {
 	for volName, f := range c.disks {
 		if f.Disk.VolumeID == volumeID {

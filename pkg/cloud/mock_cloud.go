@@ -124,6 +124,20 @@ func (mr *MockCloudMockRecorder) DetachDisk(ctx, volumeID, nodeID interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DetachDisk", reflect.TypeOf((*MockCloud)(nil).DetachDisk), ctx, volumeID, nodeID)
 }
 
+// EnableFastSnapshotRestores mocks base method.
+func (m *MockCloud) EnableFastSnapshotRestores(ctx context.Context, availabilityZones []*string, snapshotID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnableFastSnapshotRestores", ctx, availabilityZones, snapshotID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// EnableFastSnapshotRestores indicates an expected call of EnableFastSnapshotRestores.
+func (mr *MockCloudMockRecorder) EnableFastSnapshotRestores(ctx, availabilityZones, snapshotID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnableFastSnapshotRestores", reflect.TypeOf((*MockCloud)(nil).EnableFastSnapshotRestores), ctx, availabilityZones, snapshotID)
+}
+
 // GetDiskByID mocks base method.
 func (m *MockCloud) GetDiskByID(ctx context.Context, volumeID string) (*Disk, error) {
 	m.ctrl.T.Helper()

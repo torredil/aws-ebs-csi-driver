@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes"
@@ -577,12 +578,20 @@ func (d *controllerService) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	var vscTags []string
+	var fsrAvailabilityZones []*string
 	for key, value := range req.GetParameters() {
 		if strings.HasPrefix(key, TagKeyPrefix) {
 			vscTags = append(vscTags, value)
+		} else if strings.HasPrefix(key, FastSnapShotRestorePrefix) {
+			klog.Infof("FastSnapShotRestorePrefix: %s", value)
+			fsrAvailabilityZones = append(fsrAvailabilityZones, aws.String(value))
 		} else {
 			return nil, status.Errorf(codes.InvalidArgument, "Invalid parameter key %s for CreateSnapshot", key)
 		}
+	}
+	klog.Infof("Test")
+	for _, val := range fsrAvailabilityZones {
+		klog.Infof("\nfsrAvailabilityZones: ", val)
 	}
 
 	addTags, err := template.Evaluate(vscTags, nil, d.driverOptions.warnOnInvalidTag)
@@ -614,6 +623,13 @@ func (d *controllerService) CreateSnapshot(ctx context.Context, req *csi.CreateS
 
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not create snapshot %q: %v", snapshotName, err)
+	}
+
+	if len(fsrAvailabilityZones) > 0 {
+		// Enable fast snapshot restores
+		if err := d.cloud.EnableFastSnapshotRestores(ctx, fsrAvailabilityZones, snapshot.SnapshotID); err != nil {
+			klog.Errorf("Could not enable fast snapshot restore for snapshot %q: %v", snapshotName, err)
+		}
 	}
 	return newCreateSnapshotResponse(snapshot)
 }
