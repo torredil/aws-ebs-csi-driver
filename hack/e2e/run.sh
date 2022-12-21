@@ -77,7 +77,7 @@ TEST_EXTRA_FLAGS=${TEST_EXTRA_FLAGS:-}
 EBS_INSTALL_SNAPSHOT=${EBS_INSTALL_SNAPSHOT:-"false"}
 EBS_INSTALL_SNAPSHOT_VERSION=${EBS_INSTALL_SNAPSHOT_VERSION:-"v6.1.0"}
 
-HELM_TEST=${HELM_TEST:-"false"}
+HELM_CT_TEST=${HELM_CT_TEST:-"false"}
 CHART_TESTING_VERSION=${CHART_TESTING_VERSION:-3.7.1}
 CLEAN=${CLEAN:-"true"}
 
@@ -102,7 +102,7 @@ loudecho "Installing helm to ${BIN_DIR}"
 helm_install "${BIN_DIR}"
 HELM_BIN=${BIN_DIR}/helm
 
-if [[ "${HELM_TEST}" == true ]]; then
+if [[ "${HELM_CT_TEST}" == true ]]; then
   loudecho "Installing chart-testing ${CHART_TESTING_VERSION} to ${BIN_DIR}"
   ct_install "${BIN_DIR}" "${CHART_TESTING_VERSION}"
   CHART_TESTING_BIN=${BIN_DIR}/ct
@@ -173,17 +173,15 @@ if [[ "${EBS_INSTALL_SNAPSHOT}" == true ]]; then
   kubectl apply --kubeconfig "${KUBECONFIG}" -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/"${EBS_INSTALL_SNAPSHOT_VERSION}"/client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml
 fi
 
-if [[ "${HELM_TEST}" == true ]]; then
+if [[ "${HELM_CT_TEST}" == true ]]; then
   loudecho "Test and lint Helm chart with chart-testing"
-  pushd ${PWD}/charts/aws-ebs-csi-driver
   set -x
   set +e
   export KUBECONFIG="${KUBECONFIG}"
-  ${CHART_TESTING_BIN} lint-and-install --config ${PWD}/charts/config.yaml
+  #${CHART_TESTING_BIN} lint-and-install --config ${PWD}/tests/ct-config.yaml
   TEST_PASSED=$?
   set -e
   set +x
-  popd
 else
   loudecho "Deploying driver"
   startSec=$(date +'%s')
@@ -249,6 +247,11 @@ else
     set +x
   fi
 
+  OVERALL_TEST_PASSED="${TEST_PASSED}"
+
+  echo "Test result: ${TEST_PASSED}"
+  echo $OVERALL_TEST_PASSED
+
   PODS=$(kubectl get pod -n kube-system -l "app.kubernetes.io/name=${DRIVER_NAME},app.kubernetes.io/instance=${DRIVER_NAME}" -o json --kubeconfig "${KUBECONFIG}" | jq -r .items[].metadata.name)
 
   while IFS= read -r POD; do
@@ -263,7 +266,7 @@ fi
 if [[ "${CLEAN}" == true ]]; then
   loudecho "Cleaning"
 
-  if [[ "${HELM_TEST}" != true ]]; then
+  if [[ "${HELM_CT_TEST}" != true ]]; then
     loudecho "Removing driver"
     ${HELM_BIN} del "${DRIVER_NAME}" \
       --namespace kube-system \
@@ -284,9 +287,10 @@ else
   loudecho "Not cleaning"
 fi
 
-OVERALL_TEST_PASSED="${TEST_PASSED}"
+  echo "Test result: ${TEST_PASSED}"
+  OVERALL_TEST_PASSED="${TEST_PASSED}"
+  echo $OVERALL_TEST_PASSED
 
-loudecho "OVERALL_TEST_PASSED: ${OVERALL_TEST_PASSED}"
 if [[ $OVERALL_TEST_PASSED -ne 0 ]]; then
   loudecho "FAIL!"
   exit 1

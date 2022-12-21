@@ -11,7 +11,5 @@ function ct_install() {
     chmod +x "${INSTALL_PATH}"/ct
   fi
 
-  export PATH=/root/.local/bin:$PATH
-  python3 -m pip install --upgrade pip
-  python3 -m pip install --user yamllint yamale
+  python3 -m pip install yamllint yamale
 }

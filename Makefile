@@ -209,8 +209,7 @@ test-helm-chart:
 	AWS_REGION=us-west-2 \
 	AWS_AVAILABILITY_ZONES=us-west-2a,us-west-2b,us-west-2c \
 	EBS_INSTALL_SNAPSHOT="true" \
-	HELM_EXTRA_FLAGS='--set=controller.k8sTagClusterId=$$CLUSTER_NAME' \
-	HELM_TEST="true" \
+	HELM_CT_TEST="true" \
 	./hack/e2e/run.sh
 
 .PHONY: verify-vendor
