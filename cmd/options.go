@@ -17,14 +17,17 @@ limitations under the License.
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"strings"
 
+	flag "github.com/spf13/pflag"
+
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/cmd/options"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver"
 
+	"k8s.io/component-base/featuregate"
+	logsapi "k8s.io/component-base/logs/api/v1"
 	"k8s.io/klog/v2"
 )
 
@@ -39,6 +42,8 @@ type Options struct {
 
 // used for testing
 var osExit = os.Exit
+
+var featureGate = featuregate.NewFeatureGate()
 
 // GetOptions parses the command line options and returns a struct that contains
 // the parsed options.
@@ -55,7 +60,15 @@ func GetOptions(fs *flag.FlagSet) *Options {
 	)
 
 	serverOptions.AddFlags(fs)
-	klog.InitFlags(fs)
+
+	c := logsapi.NewLoggingConfiguration()
+
+	err := logsapi.AddFeatureGates(featureGate)
+	if err != nil {
+		klog.ErrorS(err, "failed to add feature gates")
+	}
+
+	logsapi.AddFlags(c, fs)
 
 	if len(os.Args) > 1 {
 		cmd := os.Args[1]
@@ -87,17 +100,21 @@ func GetOptions(fs *flag.FlagSet) *Options {
 		}
 	}
 
-	if err := fs.Parse(args); err != nil {
+	if err = fs.Parse(args); err != nil {
 		panic(err)
+	}
+
+	err = logsapi.ValidateAndApply(c, featureGate)
+	if err != nil {
+		klog.ErrorS(err, "failed to validate and apply logging configuration")
 	}
 
 	if *version {
 		info, err := driver.GetVersionJSON()
 		if err != nil {
-			klog.Fatalln(err)
+			klog.ErrorS(err, "failed to get version", "version", info)
+			klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 		}
-		fmt.Println(info)
-		osExit(0)
 	}
 
 	return &Options{

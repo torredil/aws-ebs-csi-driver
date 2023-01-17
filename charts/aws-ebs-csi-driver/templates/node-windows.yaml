@@ -54,7 +54,6 @@ spec:
             {{- with .Values.node.volumeAttachLimit }}
             - --volume-attach-limit={{ . }}
             {{- end }}
-            - --logtostderr
             - --v={{ .Values.node.logLevel }}
           env:
             - name: CSI_ENDPOINT
