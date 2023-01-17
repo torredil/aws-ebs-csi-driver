@@ -122,12 +122,12 @@ else
     GOPATH=${TEST_DIR} GOBIN=${BIN_DIR} go install sigs.k8s.io/kubetest2/...@latest
     popd
   fi
-
-  ecr_build_and_push "${REGION}" \
-    "${AWS_ACCOUNT_ID}" \
-    "${IMAGE_NAME}" \
-    "${IMAGE_TAG}"
 fi
+
+ecr_build_and_push "${REGION}" \
+  "${AWS_ACCOUNT_ID}" \
+  "${IMAGE_NAME}" \
+  "${IMAGE_TAG}"
 
 if [[ "${CLUSTER_TYPE}" == "kops" ]]; then
   kops_create_cluster \
@@ -175,6 +175,7 @@ fi
 
 if [[ "${HELM_CT_TEST}" == true ]]; then
   loudecho "Test and lint Helm chart with chart-testing"
+  sed -i -e "s|public.ecr.aws/ebs-csi-driver/aws-ebs-csi-driver|$IMAGE_NAME|g" -e "s/\"\"/$IMAGE_TAG/" ${PWD}/charts/aws-ebs-csi-driver/values.yaml
   if [ -n "${PROW_JOB_ID:-}" ]; then
     # Prow-specific setup
     # Required becuase chart_testing ALWAYS needs a remote
