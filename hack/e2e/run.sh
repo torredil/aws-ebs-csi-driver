@@ -60,6 +60,7 @@ KOPS_PATCH_NODE_FILE=${KOPS_PATCH_NODE_FILE:-./hack/kops-patch-node.yaml}
 
 EKSCTL_VERSION=${EKSCTL_VERSION:-0.125.0}
 EKSCTL_PATCH_FILE=${EKSCTL_PATCH_FILE:-./hack/eksctl-patch.yaml}
+VPC_CONFIGMAP_FILE=${VPC_CONFIGMAP_FILE:-./hack/vpc-resource-controller-configmap.yaml}
 EKSCTL_ADMIN_ROLE=${EKSCTL_ADMIN_ROLE:-}
 # Creates a windows node group.
 WINDOWS=${WINDOWS:-"false"}
@@ -72,6 +73,8 @@ ARTIFACTS=${ARTIFACTS:-"${TEST_DIR}/artifacts"}
 GINKGO_FOCUS=${GINKGO_FOCUS:-"\[ebs-csi-e2e\]"}
 GINKGO_SKIP=${GINKGO_SKIP:-"\[Disruptive\]"}
 GINKGO_NODES=${GINKGO_NODES:-4}
+GINKGO_PARALLEL=${GINKGO_PARALLEL:-25}
+NODE_OS_DISTRO=${NODE_OS_DISTRO:-"linux"}
 TEST_EXTRA_FLAGS=${TEST_EXTRA_FLAGS:-}
 
 EBS_INSTALL_SNAPSHOT=${EBS_INSTALL_SNAPSHOT:-"false"}
@@ -158,7 +161,8 @@ elif [[ "${CLUSTER_TYPE}" == "eksctl" ]]; then
     "$KUBECONFIG" \
     "$EKSCTL_PATCH_FILE" \
     "$EKSCTL_ADMIN_ROLE" \
-    "$WINDOWS"
+    "$WINDOWS" \
+    "$VPC_CONFIGMAP_FILE"
   if [[ $? -ne 0 ]]; then
     exit 1
   fi
@@ -200,6 +204,7 @@ else
     --namespace kube-system
     --set image.repository="${IMAGE_NAME}"
     --set image.tag="${IMAGE_TAG}"
+    --set node.enableWindows="${WINDOWS}"
     --wait
     --kubeconfig "${KUBECONFIG}"
     ./charts/"${DRIVER_NAME}")
@@ -231,15 +236,16 @@ else
 
     set -x
     set +e
+    #TODO: revert #246 once a stable release including windows nodeSelector change is available; set to v1.27.0-alpha.3 for testing
     kubetest2 noop \
       --run-id="e2e-kubernetes" \
       --test=ginkgo \
       -- \
       --skip-regex="${GINKGO_SKIP}" \
       --focus-regex="${GINKGO_FOCUS}" \
-      --test-package-version=$(curl https://storage.googleapis.com/kubernetes-release/release/stable-$packageVersion.txt) \
-      --parallel=25 \
-      --test-args="-storage.testdriver=${PWD}/manifests.yaml -kubeconfig=$KUBECONFIG"
+      --test-package-version=v1.27.0-alpha.3 \
+      --parallel=${GINKGO_PARALLEL} \
+      --test-args="-storage.testdriver=${PWD}/manifests.yaml -kubeconfig=$KUBECONFIG -node-os-distro=${NODE_OS_DISTRO}"
 
     TEST_PASSED=$?
     set -e
