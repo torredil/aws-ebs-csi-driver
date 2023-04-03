@@ -54,12 +54,12 @@ word-hyphen = $(word $2,$(subst -, ,$1))
 .PHONY: linux/$(ARCH) bin/aws-ebs-csi-driver
 linux/$(ARCH): bin/aws-ebs-csi-driver
 bin/aws-ebs-csi-driver: | bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -mod=mod -ldflags ${LDFLAGS} -o bin/aws-ebs-csi-driver ./cmd/
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -buildvcs=false -mod=mod -ldflags ${LDFLAGS} -o bin/aws-ebs-csi-driver ./cmd/
 
 .PHONY: windows/$(ARCH) bin/aws-ebs-csi-driver.exe
 windows/$(ARCH): bin/aws-ebs-csi-driver.exe
 bin/aws-ebs-csi-driver.exe: | bin
-	CGO_ENABLED=0 GOOS=windows GOARCH=$(ARCH) go build -mod=mod -ldflags ${LDFLAGS} -o bin/aws-ebs-csi-driver.exe ./cmd/
+	CGO_ENABLED=0 GOOS=windows GOARCH=$(ARCH) go build -buildvcs=false -mod=mod -ldflags ${LDFLAGS} -o bin/aws-ebs-csi-driver.exe ./cmd/
 
 # Builds all linux images (not windows because it can't be exported with OUTPUT_TYPE=docker)
 .PHONY: all
@@ -211,7 +211,6 @@ test-e2e-external-eks-windows:
 	TEST_PATH=./tests/e2e-kubernetes/... \
 	GINKGO_FOCUS="External.Storage" \
 	GINKGO_SKIP="\[Disruptive\]|\[Serial\]|\[LinuxOnly\]|\[Feature:VolumeSnapshotDataSource\]|\(xfs\)|\(ext4\)|\(block volmode\)|csinodes" \
-	GINKGO_PARALLEL=15 \
 	NODE_OS_DISTRO="windows" \
 	./hack/e2e/run.sh
 

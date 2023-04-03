@@ -72,8 +72,8 @@ function eksctl_create_cluster() {
       --cluster="${CLUSTER_NAME}" \
       --node-ami-family=WindowsServer2022FullContainer \
       -n ng-windows \
-      -m 3 \
-      -M 3 \
+      -m 5 \
+      -M 5 \
       --ssh-access \
       --ssh-public-key "${SSH_KEY_PATH}".pub
 
