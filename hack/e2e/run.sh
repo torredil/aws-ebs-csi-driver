@@ -41,7 +41,7 @@ KUBECONFIG=${KUBECONFIG:-"${TEST_DIR}/${CLUSTER_NAME}.${CLUSTER_TYPE}.kubeconfig
 REGION=${AWS_REGION:-us-west-2}
 ZONES=${AWS_AVAILABILITY_ZONES:-us-west-2a,us-west-2b,us-west-2c}
 FIRST_ZONE=$(echo "${ZONES}" | cut -d, -f1)
-NODE_COUNT=${NODE_COUNT:-3}
+NODE_COUNT=${NODE_COUNT:-4}
 INSTANCE_TYPE=${INSTANCE_TYPE:-c5.large}
 
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
