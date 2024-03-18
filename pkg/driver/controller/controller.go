@@ -14,13 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package driver
+package controller
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"math/rand"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -57,16 +58,6 @@ var (
 
 const isManagedByDriver = "true"
 
-// controllerService represents the controller service of CSI driver
-type controllerService struct {
-	cloud               cloud.Cloud
-	inFlight            *internal.InFlight
-	driverOptions       *DriverOptions
-	modifyVolumeManager *modifyVolumeManager
-
-	rpc.UnimplementedModifyServer
-}
-
 var (
 	// NewMetadataFunc is a variable for the cloud.NewMetadata function that can
 	// be overwritten in unit tests.
@@ -76,35 +67,36 @@ var (
 	NewCloudFunc = cloud.NewCloud
 )
 
-// newControllerService creates a new controller service
-// it panics if failed to create the service
-func newControllerService(driverOptions *DriverOptions) controllerService {
-	region := os.Getenv("AWS_REGION")
-	if region == "" {
-		klog.V(5).InfoS("[Debug] Retrieving region from metadata service")
-		metadata, err := NewMetadataFunc(cloud.DefaultEC2MetadataClient, cloud.DefaultKubernetesAPIClient, region)
-		if err != nil {
-			klog.ErrorS(err, "Could not determine region from any metadata service. The region can be manually supplied via the AWS_REGION environment variable.")
-			panic(err)
-		}
-		region = metadata.GetRegion()
-	}
+type Options struct {
+	KubernetesClusterID string
+	AwsSdkDebugLog      bool
+	Batching            bool
+	WarnOnInvalidTag    bool
+	ExtraTags           map[string]string
+	// Add any other fields required by the controller
+}
 
-	klog.InfoS("batching", "status", driverOptions.batching)
-	cloudSrv, err := NewCloudFunc(region, driverOptions.awsSdkDebugLog, driverOptions.userAgentExtra, driverOptions.batching)
-	if err != nil {
-		panic(err)
-	}
+// controllerService represents the controller service of CSI driver
+type Controller struct {
+	cloud               cloud.Cloud
+	inFlight            *internal.InFlight
+	options             *Options
+	modifyVolumeManager *modifyVolumeManager
 
-	return controllerService{
-		cloud:               cloudSrv,
+	rpc.UnimplementedModifyServer
+}
+
+func NewController(cloud cloud.Cloud, options *Options) *Controller {
+	// Initialize your service with the provided cloud and options
+	return &Controller{
+		cloud:               cloud,
 		inFlight:            internal.NewInFlight(),
-		driverOptions:       driverOptions,
+		options:             options,
 		modifyVolumeManager: newModifyVolumeManager(),
 	}
 }
 
-func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+func (d *Controller) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	klog.V(4).InfoS("CreateVolume: called", "args", *req)
 	if err := validateCreateVolumeRequest(req); err != nil {
 		return nil, err
@@ -159,75 +151,75 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 		switch strings.ToLower(key) {
 		case "fstype":
 			klog.InfoS("\"fstype\" is deprecated, please use \"csi.storage.k8s.io/fstype\" instead")
-		case VolumeTypeKey:
+		case util.VolumeTypeKey:
 			volumeType = value
-		case IopsPerGBKey:
+		case util.IopsPerGBKey:
 			iopsPerGB, err = strconv.Atoi(value)
 			if err != nil {
 				return nil, status.Errorf(codes.InvalidArgument, "Could not parse invalid iopsPerGB: %v", err)
 			}
-		case AllowAutoIOPSPerGBIncreaseKey:
+		case util.AllowAutoIOPSPerGBIncreaseKey:
 			allowIOPSPerGBIncrease = value == "true"
-		case IopsKey:
+		case util.IopsKey:
 			iops, err = strconv.Atoi(value)
 			if err != nil {
 				return nil, status.Errorf(codes.InvalidArgument, "Could not parse invalid iops: %v", err)
 			}
-		case ThroughputKey:
+		case util.ThroughputKey:
 			throughput, err = strconv.Atoi(value)
 			if err != nil {
 				return nil, status.Errorf(codes.InvalidArgument, "Could not parse invalid throughput: %v", err)
 			}
-		case EncryptedKey:
+		case util.EncryptedKey:
 			if value == "true" {
 				isEncrypted = true
 			}
-		case KmsKeyIDKey:
+		case util.KmsKeyIDKey:
 			kmsKeyID = value
-		case PVCNameKey:
-			volumeTags[PVCNameTag] = value
+		case util.PVCNameKey:
+			volumeTags[util.PVCNameTag] = value
 			tProps.PVCName = value
-		case PVCNamespaceKey:
-			volumeTags[PVCNamespaceTag] = value
+		case util.PVCNamespaceKey:
+			volumeTags[util.PVCNamespaceTag] = value
 			tProps.PVCNamespace = value
-		case PVNameKey:
-			volumeTags[PVNameTag] = value
+		case util.PVNameKey:
+			volumeTags[util.PVNameTag] = value
 			tProps.PVName = value
-		case BlockExpressKey:
+		case util.BlockExpressKey:
 			if value == "true" {
 				blockExpress = true
 			}
-		case BlockSizeKey:
+		case util.BlockSizeKey:
 			if isAlphanumeric := util.StringIsAlphanumeric(value); !isAlphanumeric {
 				return nil, status.Errorf(codes.InvalidArgument, "Could not parse blockSize (%s): %v", value, err)
 			}
 			blockSize = value
-		case InodeSizeKey:
+		case util.InodeSizeKey:
 			if isAlphanumeric := util.StringIsAlphanumeric(value); !isAlphanumeric {
 				return nil, status.Errorf(codes.InvalidArgument, "Could not parse inodeSize (%s): %v", value, err)
 			}
 			inodeSize = value
-		case BytesPerInodeKey:
+		case util.BytesPerInodeKey:
 			if isAlphanumeric := util.StringIsAlphanumeric(value); !isAlphanumeric {
 				return nil, status.Errorf(codes.InvalidArgument, "Could not parse bytesPerInode (%s): %v", value, err)
 			}
 			bytesPerInode = value
-		case NumberOfInodesKey:
+		case util.NumberOfInodesKey:
 			if isAlphanumeric := util.StringIsAlphanumeric(value); !isAlphanumeric {
 				return nil, status.Errorf(codes.InvalidArgument, "Could not parse numberOfInodes (%s): %v", value, err)
 			}
 			numberOfInodes = value
-		case Ext4BigAllocKey:
+		case util.Ext4BigAllocKey:
 			if value == "true" {
 				ext4BigAlloc = true
 			}
-		case Ext4ClusterSizeKey:
+		case util.Ext4ClusterSizeKey:
 			if isAlphanumeric := util.StringIsAlphanumeric(value); !isAlphanumeric {
 				return nil, status.Errorf(codes.InvalidArgument, "Could not parse ext4ClusterSize (%s): %v", value, err)
 			}
 			ext4ClusterSize = value
 		default:
-			if strings.HasPrefix(key, TagKeyPrefix) {
+			if strings.HasPrefix(key, util.TagKeyPrefix) {
 				scTags = append(scTags, value)
 			} else {
 				return nil, status.Errorf(codes.InvalidArgument, "Invalid parameter key %s for CreateVolume", key)
@@ -255,38 +247,38 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	responseCtx := map[string]string{}
 
 	if len(blockSize) > 0 {
-		responseCtx[BlockSizeKey] = blockSize
-		if err = validateFormattingOption(volCap, BlockSizeKey, FileSystemConfigs); err != nil {
+		responseCtx[util.BlockSizeKey] = blockSize
+		if err = validateFormattingOption(volCap, util.BlockSizeKey, util.FileSystemConfigs); err != nil {
 			return nil, err
 		}
 	}
 	if len(inodeSize) > 0 {
-		responseCtx[InodeSizeKey] = inodeSize
-		if err = validateFormattingOption(volCap, InodeSizeKey, FileSystemConfigs); err != nil {
+		responseCtx[util.InodeSizeKey] = inodeSize
+		if err = validateFormattingOption(volCap, util.InodeSizeKey, util.FileSystemConfigs); err != nil {
 			return nil, err
 		}
 	}
 	if len(bytesPerInode) > 0 {
-		responseCtx[BytesPerInodeKey] = bytesPerInode
-		if err = validateFormattingOption(volCap, BytesPerInodeKey, FileSystemConfigs); err != nil {
+		responseCtx[util.BytesPerInodeKey] = bytesPerInode
+		if err = validateFormattingOption(volCap, util.BytesPerInodeKey, util.FileSystemConfigs); err != nil {
 			return nil, err
 		}
 	}
 	if len(numberOfInodes) > 0 {
-		responseCtx[NumberOfInodesKey] = numberOfInodes
-		if err = validateFormattingOption(volCap, NumberOfInodesKey, FileSystemConfigs); err != nil {
+		responseCtx[util.NumberOfInodesKey] = numberOfInodes
+		if err = validateFormattingOption(volCap, util.NumberOfInodesKey, util.FileSystemConfigs); err != nil {
 			return nil, err
 		}
 	}
 	if ext4BigAlloc {
-		responseCtx[Ext4BigAllocKey] = "true"
-		if err = validateFormattingOption(volCap, Ext4BigAllocKey, FileSystemConfigs); err != nil {
+		responseCtx[util.Ext4BigAllocKey] = "true"
+		if err = validateFormattingOption(volCap, util.Ext4BigAllocKey, util.FileSystemConfigs); err != nil {
 			return nil, err
 		}
 	}
 	if len(ext4ClusterSize) > 0 {
-		responseCtx[Ext4ClusterSizeKey] = ext4ClusterSize
-		if err = validateFormattingOption(volCap, Ext4ClusterSizeKey, FileSystemConfigs); err != nil {
+		responseCtx[util.Ext4ClusterSizeKey] = ext4ClusterSize
+		if err = validateFormattingOption(volCap, util.Ext4ClusterSizeKey, util.FileSystemConfigs); err != nil {
 			return nil, err
 		}
 	}
@@ -317,22 +309,22 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	outpostArn := getOutpostArn(req.GetAccessibilityRequirements())
 
 	// fill volume tags
-	if d.driverOptions.kubernetesClusterID != "" {
-		resourceLifecycleTag := ResourceLifecycleTagPrefix + d.driverOptions.kubernetesClusterID
-		volumeTags[resourceLifecycleTag] = ResourceLifecycleOwned
-		volumeTags[NameTag] = d.driverOptions.kubernetesClusterID + "-dynamic-" + volName
-		volumeTags[KubernetesClusterTag] = d.driverOptions.kubernetesClusterID
+	if d.options.KubernetesClusterID != "" {
+		resourceLifecycleTag := util.ResourceLifecycleTagPrefix + d.options.KubernetesClusterID
+		volumeTags[resourceLifecycleTag] = util.ResourceLifecycleOwned
+		volumeTags[util.NameTag] = d.options.KubernetesClusterID + "-dynamic-" + volName
+		volumeTags[util.KubernetesClusterTag] = d.options.KubernetesClusterID
 	}
-	for k, v := range d.driverOptions.extraTags {
+	for k, v := range d.options.ExtraTags {
 		volumeTags[k] = v
 	}
 
-	addTags, err := template.Evaluate(scTags, tProps, d.driverOptions.warnOnInvalidTag)
+	addTags, err := template.Evaluate(scTags, tProps, d.options.WarnOnInvalidTag)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Error interpolating the tag value: %v", err)
 	}
 
-	if err = validateExtraTags(addTags, d.driverOptions.warnOnInvalidTag); err != nil {
+	if err = ValidateExtraTags(addTags, d.options.WarnOnInvalidTag); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid tag value: %v", err)
 	}
 
@@ -373,24 +365,7 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	return newCreateVolumeResponse(disk, responseCtx), nil
 }
 
-func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
-	volName := req.GetName()
-	if len(volName) == 0 {
-		return status.Error(codes.InvalidArgument, "Volume name not provided")
-	}
-
-	volCaps := req.GetVolumeCapabilities()
-	if len(volCaps) == 0 {
-		return status.Error(codes.InvalidArgument, "Volume capabilities not provided")
-	}
-
-	if !isValidVolumeCapabilities(volCaps) {
-		return status.Error(codes.InvalidArgument, "Volume capabilities not supported")
-	}
-	return nil
-}
-
-func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
+func (d *Controller) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
 	klog.V(4).InfoS("DeleteVolume: called", "args", *req)
 	if err := validateDeleteVolumeRequest(req); err != nil {
 		return nil, err
@@ -415,14 +390,7 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
-func validateDeleteVolumeRequest(req *csi.DeleteVolumeRequest) error {
-	if len(req.GetVolumeId()) == 0 {
-		return status.Error(codes.InvalidArgument, "Volume ID not provided")
-	}
-	return nil
-}
-
-func (d *controllerService) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
+func (d *Controller) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	klog.V(4).InfoS("ControllerPublishVolume: called", "args", *req)
 	if err := validateControllerPublishVolumeRequest(req); err != nil {
 		return nil, err
@@ -447,31 +415,11 @@ func (d *controllerService) ControllerPublishVolume(ctx context.Context, req *cs
 	}
 	klog.InfoS("ControllerPublishVolume: attached", "volumeID", volumeID, "nodeID", nodeID, "devicePath", devicePath)
 
-	pvInfo := map[string]string{DevicePathKey: devicePath}
+	pvInfo := map[string]string{util.DevicePathKey: devicePath}
 	return &csi.ControllerPublishVolumeResponse{PublishContext: pvInfo}, nil
 }
 
-func validateControllerPublishVolumeRequest(req *csi.ControllerPublishVolumeRequest) error {
-	if len(req.GetVolumeId()) == 0 {
-		return status.Error(codes.InvalidArgument, "Volume ID not provided")
-	}
-
-	if len(req.GetNodeId()) == 0 {
-		return status.Error(codes.InvalidArgument, "Node ID not provided")
-	}
-
-	volCap := req.GetVolumeCapability()
-	if volCap == nil {
-		return status.Error(codes.InvalidArgument, "Volume capability not provided")
-	}
-
-	if !isValidCapability(volCap) {
-		return status.Error(codes.InvalidArgument, "Volume capability not supported")
-	}
-	return nil
-}
-
-func (d *controllerService) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
+func (d *Controller) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	klog.V(4).InfoS("ControllerUnpublishVolume: called", "args", *req)
 
 	if err := validateControllerUnpublishVolumeRequest(req); err != nil {
@@ -499,19 +447,7 @@ func (d *controllerService) ControllerUnpublishVolume(ctx context.Context, req *
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
-func validateControllerUnpublishVolumeRequest(req *csi.ControllerUnpublishVolumeRequest) error {
-	if len(req.GetVolumeId()) == 0 {
-		return status.Error(codes.InvalidArgument, "Volume ID not provided")
-	}
-
-	if len(req.GetNodeId()) == 0 {
-		return status.Error(codes.InvalidArgument, "Node ID not provided")
-	}
-
-	return nil
-}
-
-func (d *controllerService) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
+func (d *Controller) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
 	klog.V(4).InfoS("ControllerGetCapabilities: called", "args", *req)
 	var caps []*csi.ControllerServiceCapability
 	for _, cap := range controllerCaps {
@@ -527,17 +463,17 @@ func (d *controllerService) ControllerGetCapabilities(ctx context.Context, req *
 	return &csi.ControllerGetCapabilitiesResponse{Capabilities: caps}, nil
 }
 
-func (d *controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
+func (d *Controller) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
 	klog.V(4).InfoS("GetCapacity: called", "args", *req)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (d *controllerService) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
+func (d *Controller) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
 	klog.V(4).InfoS("ListVolumes: called", "args", *req)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (d *controllerService) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
+func (d *Controller) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
 	klog.V(4).InfoS("ValidateVolumeCapabilities: called", "args", *req)
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
@@ -565,7 +501,7 @@ func (d *controllerService) ValidateVolumeCapabilities(ctx context.Context, req 
 	}, nil
 }
 
-func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
+func (d *Controller) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	klog.V(4).InfoS("ControllerExpandVolume: called", "args", *req)
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
@@ -618,7 +554,7 @@ func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi
 	}, nil
 }
 
-func (d *controllerService) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest) (*csi.ControllerModifyVolumeResponse, error) {
+func (d *Controller) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest) (*csi.ControllerModifyVolumeResponse, error) {
 	klog.V(4).InfoS("ControllerModifyVolume: called", "args", *req)
 
 	volumeID := req.GetVolumeId()
@@ -639,65 +575,12 @@ func (d *controllerService) ControllerModifyVolume(ctx context.Context, req *csi
 	return &csi.ControllerModifyVolumeResponse{}, nil
 }
 
-func (d *controllerService) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
+func (d *Controller) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
 	klog.V(4).InfoS("ControllerGetVolume: called", "args", *req)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func isValidVolumeCapabilities(v []*csi.VolumeCapability) bool {
-	for _, c := range v {
-		if !isValidCapability(c) {
-			return false
-		}
-	}
-	return true
-}
-
-func isValidCapability(c *csi.VolumeCapability) bool {
-	accessMode := c.GetAccessMode().GetMode()
-
-	//nolint:exhaustive
-	switch accessMode {
-	case SingleNodeWriter:
-		return true
-
-	case MultiNodeMultiWriter:
-		if isBlock(c) {
-			return true
-		} else {
-			klog.InfoS("isValidCapability: access mode is only supported for block devices", "accessMode", accessMode)
-			return false
-		}
-
-	default:
-		klog.InfoS("isValidCapability: access mode is not supported", "accessMode", accessMode)
-		return false
-	}
-}
-
-func isBlock(cap *csi.VolumeCapability) bool {
-	_, isBlock := cap.GetAccessType().(*csi.VolumeCapability_Block)
-	return isBlock
-}
-
-func isValidVolumeContext(volContext map[string]string) bool {
-	//There could be multiple volume attributes in the volumeContext map
-	//Validate here case by case
-	if partition, ok := volContext[VolumeAttributePartition]; ok {
-		partitionInt, err := strconv.ParseInt(partition, 10, 64)
-		if err != nil {
-			klog.ErrorS(err, "failed to parse partition as int", "partition", partition)
-			return false
-		}
-		if partitionInt < 0 {
-			klog.ErrorS(err, "invalid partition config", "partition", partition)
-			return false
-		}
-	}
-	return true
-}
-
-func (d *controllerService) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
+func (d *Controller) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
 	klog.V(4).InfoS("CreateSnapshot: called", "args", req)
 	if err := validateCreateSnapshotRequest(req); err != nil {
 		return nil, err
@@ -736,17 +619,17 @@ func (d *controllerService) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	vsProps := new(template.VolumeSnapshotProps)
 	for key, value := range req.GetParameters() {
 		switch strings.ToLower(key) {
-		case VolumeSnapshotNameKey:
+		case util.VolumeSnapshotNameKey:
 			vsProps.VolumeSnapshotName = value
-		case VolumeSnapshotNamespaceKey:
+		case util.VolumeSnapshotNamespaceKey:
 			vsProps.VolumeSnapshotNamespace = value
-		case VolumeSnapshotContentNameKey:
+		case util.VolumeSnapshotContentNameKey:
 			vsProps.VolumeSnapshotContentName = value
-		case FastSnapshotRestoreAvailabilityZones:
+		case util.FastSnapshotRestoreAvailabilityZones:
 			f := strings.ReplaceAll(value, " ", "")
 			fsrAvailabilityZones = strings.Split(f, ",")
 		default:
-			if strings.HasPrefix(key, TagKeyPrefix) {
+			if strings.HasPrefix(key, util.TagKeyPrefix) {
 				vscTags = append(vscTags, value)
 			} else {
 				return nil, status.Errorf(codes.InvalidArgument, "Invalid parameter key %s for CreateSnapshot", key)
@@ -754,21 +637,21 @@ func (d *controllerService) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		}
 	}
 
-	addTags, err := template.Evaluate(vscTags, vsProps, d.driverOptions.warnOnInvalidTag)
+	addTags, err := template.Evaluate(vscTags, vsProps, d.options.WarnOnInvalidTag)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Error interpolating the tag value: %v", err)
 	}
 
-	if err = validateExtraTags(addTags, d.driverOptions.warnOnInvalidTag); err != nil {
+	if err = ValidateExtraTags(addTags, d.options.WarnOnInvalidTag); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid tag value: %v", err)
 	}
 
-	if d.driverOptions.kubernetesClusterID != "" {
-		resourceLifecycleTag := ResourceLifecycleTagPrefix + d.driverOptions.kubernetesClusterID
-		snapshotTags[resourceLifecycleTag] = ResourceLifecycleOwned
-		snapshotTags[NameTag] = d.driverOptions.kubernetesClusterID + "-dynamic-" + snapshotName
+	if d.options.KubernetesClusterID != "" {
+		resourceLifecycleTag := util.ResourceLifecycleTagPrefix + d.options.KubernetesClusterID
+		snapshotTags[resourceLifecycleTag] = util.ResourceLifecycleOwned
+		snapshotTags[util.NameTag] = d.options.KubernetesClusterID + "-dynamic-" + snapshotName
 	}
-	for k, v := range d.driverOptions.extraTags {
+	for k, v := range d.options.ExtraTags {
 		snapshotTags[k] = v
 	}
 
@@ -815,18 +698,7 @@ func (d *controllerService) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	return newCreateSnapshotResponse(snapshot)
 }
 
-func validateCreateSnapshotRequest(req *csi.CreateSnapshotRequest) error {
-	if len(req.GetName()) == 0 {
-		return status.Error(codes.InvalidArgument, "Snapshot name not provided")
-	}
-
-	if len(req.GetSourceVolumeId()) == 0 {
-		return status.Error(codes.InvalidArgument, "Snapshot volume source ID not provided")
-	}
-	return nil
-}
-
-func (d *controllerService) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
+func (d *Controller) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
 	klog.V(4).InfoS("DeleteSnapshot: called", "args", req)
 	if err := validateDeleteSnapshotRequest(req); err != nil {
 		return nil, err
@@ -852,14 +724,7 @@ func (d *controllerService) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 
-func validateDeleteSnapshotRequest(req *csi.DeleteSnapshotRequest) error {
-	if len(req.GetSnapshotId()) == 0 {
-		return status.Error(codes.InvalidArgument, "Snapshot ID not provided")
-	}
-	return nil
-}
-
-func (d *controllerService) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
+func (d *Controller) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
 	klog.V(4).InfoS("ListSnapshots: called", "args", req)
 	var snapshots []*cloud.Snapshot
 
@@ -907,22 +772,22 @@ func pickAvailabilityZone(requirement *csi.TopologyRequirement) string {
 		return ""
 	}
 	for _, topology := range requirement.GetPreferred() {
-		zone, exists := topology.GetSegments()[WellKnownTopologyKey]
+		zone, exists := topology.GetSegments()[util.WellKnownTopologyKey]
 		if exists {
 			return zone
 		}
 
-		zone, exists = topology.GetSegments()[TopologyKey]
+		zone, exists = topology.GetSegments()[util.TopologyKey]
 		if exists {
 			return zone
 		}
 	}
 	for _, topology := range requirement.GetRequisite() {
-		zone, exists := topology.GetSegments()[WellKnownTopologyKey]
+		zone, exists := topology.GetSegments()[util.WellKnownTopologyKey]
 		if exists {
 			return zone
 		}
-		zone, exists = topology.GetSegments()[TopologyKey]
+		zone, exists = topology.GetSegments()[util.TopologyKey]
 		if exists {
 			return zone
 		}
@@ -935,13 +800,13 @@ func getOutpostArn(requirement *csi.TopologyRequirement) string {
 		return ""
 	}
 	for _, topology := range requirement.GetPreferred() {
-		_, exists := topology.GetSegments()[AwsOutpostIDKey]
+		_, exists := topology.GetSegments()[util.AwsOutpostIDKey]
 		if exists {
 			return BuildOutpostArn(topology.GetSegments())
 		}
 	}
 	for _, topology := range requirement.GetRequisite() {
-		_, exists := topology.GetSegments()[AwsOutpostIDKey]
+		_, exists := topology.GetSegments()[util.AwsOutpostIDKey]
 		if exists {
 			return BuildOutpostArn(topology.GetSegments())
 		}
@@ -962,15 +827,15 @@ func newCreateVolumeResponse(disk *cloud.Disk, ctx map[string]string) *csi.Creat
 		}
 	}
 
-	segments := map[string]string{TopologyKey: disk.AvailabilityZone}
+	segments := map[string]string{util.TopologyKey: disk.AvailabilityZone}
 
 	arn, err := arn.Parse(disk.OutpostArn)
 
 	if err == nil {
-		segments[AwsRegionKey] = arn.Region
-		segments[AwsPartitionKey] = arn.Partition
-		segments[AwsAccountIDKey] = arn.AccountID
-		segments[AwsOutpostIDKey] = strings.ReplaceAll(arn.Resource, "outpost/", "")
+		segments[util.AwsRegionKey] = arn.Region
+		segments[util.AwsPartitionKey] = arn.Partition
+		segments[util.AwsAccountIDKey] = arn.AccountID
+		segments[util.AwsOutpostIDKey] = strings.ReplaceAll(arn.Resource, "outpost/", "")
 	}
 
 	return &csi.CreateVolumeResponse{
@@ -1047,29 +912,29 @@ func getVolSizeBytes(req *csi.CreateVolumeRequest) (int64, error) {
 // BuildOutpostArn returns the string representation of the outpost ARN from the given csi.TopologyRequirement.segments
 func BuildOutpostArn(segments map[string]string) string {
 
-	if len(segments[AwsPartitionKey]) <= 0 {
+	if len(segments[util.AwsPartitionKey]) <= 0 {
 		return ""
 	}
 
-	if len(segments[AwsRegionKey]) <= 0 {
+	if len(segments[util.AwsRegionKey]) <= 0 {
 		return ""
 	}
-	if len(segments[AwsOutpostIDKey]) <= 0 {
+	if len(segments[util.AwsOutpostIDKey]) <= 0 {
 		return ""
 	}
-	if len(segments[AwsAccountIDKey]) <= 0 {
+	if len(segments[util.AwsAccountIDKey]) <= 0 {
 		return ""
 	}
 
 	return fmt.Sprintf("arn:%s:outposts:%s:%s:outpost/%s",
-		segments[AwsPartitionKey],
-		segments[AwsRegionKey],
-		segments[AwsAccountIDKey],
-		segments[AwsOutpostIDKey],
+		segments[util.AwsPartitionKey],
+		segments[util.AwsRegionKey],
+		segments[util.AwsAccountIDKey],
+		segments[util.AwsOutpostIDKey],
 	)
 }
 
-func validateFormattingOption(volumeCapabilities []*csi.VolumeCapability, paramName string, fsConfigs map[string]fileSystemConfig) error {
+func validateFormattingOption(volumeCapabilities []*csi.VolumeCapability, paramName string, fsConfigs map[string]util.FileSystemConfig) error {
 	for _, volCap := range volumeCapabilities {
 		switch volCap.GetAccessType().(type) {
 		case *csi.VolumeCapability_Block:
@@ -1082,10 +947,203 @@ func validateFormattingOption(volumeCapabilities []*csi.VolumeCapability, paramN
 		}
 
 		fsType := mountVolume.GetFsType()
-		if supported := fsConfigs[fsType].isParameterSupported(paramName); !supported {
+		if supported := fsConfigs[fsType].IsParameterSupported(paramName); !supported {
 			return status.Errorf(codes.InvalidArgument, "Cannot use %s with fstype %s", paramName, fsType)
 		}
 	}
 
+	return nil
+}
+
+var (
+	/// https://docs.aws.amazon.com/general/latest/gr/aws_tagging.html
+	awsTagValidRegex = regexp.MustCompile(`[a-zA-Z0-9_.:=+\-@]*`)
+)
+
+func ValidateExtraTags(tags map[string]string, warnOnly bool) error {
+	if len(tags) > cloud.MaxNumTagsPerResource {
+		return fmt.Errorf("Too many tags (actual: %d, limit: %d)", len(tags), cloud.MaxNumTagsPerResource)
+	}
+
+	validate := func(k, v string) error {
+		if len(k) > cloud.MaxTagKeyLength {
+			return fmt.Errorf("Tag key too long (actual: %d, limit: %d)", len(k), cloud.MaxTagKeyLength)
+		} else if len(k) < cloud.MinTagKeyLength {
+			return fmt.Errorf("Tag key cannot be empty (min: 1)")
+		}
+		if len(v) > cloud.MaxTagValueLength {
+			return fmt.Errorf("Tag value too long (actual: %d, limit: %d)", len(v), cloud.MaxTagValueLength)
+		}
+		if k == cloud.VolumeNameTagKey {
+			return fmt.Errorf("Tag key '%s' is reserved", cloud.VolumeNameTagKey)
+		}
+		if k == cloud.AwsEbsDriverTagKey {
+			return fmt.Errorf("Tag key '%s' is reserved", cloud.AwsEbsDriverTagKey)
+		}
+		if k == cloud.SnapshotNameTagKey {
+			return fmt.Errorf("Tag key '%s' is reserved", cloud.SnapshotNameTagKey)
+		}
+		if strings.HasPrefix(k, cloud.KubernetesTagKeyPrefix) {
+			return fmt.Errorf("Tag key prefix '%s' is reserved", cloud.KubernetesTagKeyPrefix)
+		}
+		if strings.HasPrefix(k, cloud.AWSTagKeyPrefix) {
+			return fmt.Errorf("Tag key prefix '%s' is reserved", cloud.AWSTagKeyPrefix)
+		}
+		if !awsTagValidRegex.MatchString(k) {
+			return fmt.Errorf("Tag key '%s' is not a valid AWS tag key", k)
+		}
+		if !awsTagValidRegex.MatchString(v) {
+			return fmt.Errorf("Tag value '%s' is not a valid AWS tag value", v)
+		}
+		return nil
+	}
+
+	for k, v := range tags {
+		err := validate(k, v)
+		if err != nil {
+			if warnOnly {
+				klog.InfoS("Skipping tag: the following key-value pair is not valid", "key", k, "value", v, "err", err)
+			} else {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func randomString(n int) string {
+	var letter = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letter[rand.Intn(len(letter))]
+	}
+	return string(b)
+}
+
+func validateDeleteSnapshotRequest(req *csi.DeleteSnapshotRequest) error {
+	if len(req.GetSnapshotId()) == 0 {
+		return status.Error(codes.InvalidArgument, "Snapshot ID not provided")
+	}
+	return nil
+}
+
+func validateCreateSnapshotRequest(req *csi.CreateSnapshotRequest) error {
+	if len(req.GetName()) == 0 {
+		return status.Error(codes.InvalidArgument, "Snapshot name not provided")
+	}
+
+	if len(req.GetSourceVolumeId()) == 0 {
+		return status.Error(codes.InvalidArgument, "Snapshot volume source ID not provided")
+	}
+	return nil
+}
+
+func isBlock(cap *csi.VolumeCapability) bool {
+	_, isBlock := cap.GetAccessType().(*csi.VolumeCapability_Block)
+	return isBlock
+}
+
+func isValidVolumeContext(volContext map[string]string) bool {
+	//There could be multiple volume attributes in the volumeContext map
+	//Validate here case by case
+	if partition, ok := volContext[util.VolumeAttributePartition]; ok {
+		partitionInt, err := strconv.ParseInt(partition, 10, 64)
+		if err != nil {
+			klog.ErrorS(err, "failed to parse partition as int", "partition", partition)
+			return false
+		}
+		if partitionInt < 0 {
+			klog.ErrorS(err, "invalid partition config", "partition", partition)
+			return false
+		}
+	}
+	return true
+}
+
+func isValidVolumeCapabilities(v []*csi.VolumeCapability) bool {
+	for _, c := range v {
+		if !isValidCapability(c) {
+			return false
+		}
+	}
+	return true
+}
+
+func isValidCapability(c *csi.VolumeCapability) bool {
+	accessMode := c.GetAccessMode().GetMode()
+
+	//nolint:exhaustive
+	switch accessMode {
+	case SingleNodeWriter:
+		return true
+
+	case MultiNodeMultiWriter:
+		if isBlock(c) {
+			return true
+		} else {
+			klog.InfoS("isValidCapability: access mode is only supported for block devices", "accessMode", accessMode)
+			return false
+		}
+
+	default:
+		klog.InfoS("isValidCapability: access mode is not supported", "accessMode", accessMode)
+		return false
+	}
+}
+
+func validateControllerUnpublishVolumeRequest(req *csi.ControllerUnpublishVolumeRequest) error {
+	if len(req.GetVolumeId()) == 0 {
+		return status.Error(codes.InvalidArgument, "Volume ID not provided")
+	}
+
+	if len(req.GetNodeId()) == 0 {
+		return status.Error(codes.InvalidArgument, "Node ID not provided")
+	}
+
+	return nil
+}
+
+func validateControllerPublishVolumeRequest(req *csi.ControllerPublishVolumeRequest) error {
+	if len(req.GetVolumeId()) == 0 {
+		return status.Error(codes.InvalidArgument, "Volume ID not provided")
+	}
+
+	if len(req.GetNodeId()) == 0 {
+		return status.Error(codes.InvalidArgument, "Node ID not provided")
+	}
+
+	volCap := req.GetVolumeCapability()
+	if volCap == nil {
+		return status.Error(codes.InvalidArgument, "Volume capability not provided")
+	}
+
+	if !isValidCapability(volCap) {
+		return status.Error(codes.InvalidArgument, "Volume capability not supported")
+	}
+	return nil
+}
+
+func validateDeleteVolumeRequest(req *csi.DeleteVolumeRequest) error {
+	if len(req.GetVolumeId()) == 0 {
+		return status.Error(codes.InvalidArgument, "Volume ID not provided")
+	}
+	return nil
+}
+
+func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
+	volName := req.GetName()
+	if len(volName) == 0 {
+		return status.Error(codes.InvalidArgument, "Volume name not provided")
+	}
+
+	volCaps := req.GetVolumeCapabilities()
+	if len(volCaps) == 0 {
+		return status.Error(codes.InvalidArgument, "Volume capabilities not provided")
+	}
+
+	if !isValidVolumeCapabilities(volCaps) {
+		return status.Error(codes.InvalidArgument, "Volume capabilities not supported")
+	}
 	return nil
 }

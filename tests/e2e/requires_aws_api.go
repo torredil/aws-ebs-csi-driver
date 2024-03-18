@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/tests/e2e/driver"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/tests/e2e/testsuites"
 	"k8s.io/kubernetes/test/e2e/framework"
@@ -33,7 +34,6 @@ import (
 	admissionapi "k8s.io/pod-security-admission/api"
 
 	awscloud "github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
-	ebscsidriver "github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver"
 )
 
 const testTagName = "testTag"
@@ -84,9 +84,9 @@ var _ = Describe("[ebs-csi-e2e] [single-az] [requires-aws-api] Dynamic Provision
 				Volumes: []testsuites.VolumeDetails{
 					{
 						CreateVolumeParameters: map[string]string{
-							ebscsidriver.VolumeTypeKey: awscloud.VolumeTypeGP3,
-							ebscsidriver.FSTypeKey:     ebscsidriver.FSTypeExt4,
-							ebscsidriver.TagKeyPrefix:  fmt.Sprintf("%s=%s", testTagName, testTagValue),
+							util.VolumeTypeKey: awscloud.VolumeTypeGP3,
+							util.FSTypeKey:     util.FSTypeExt4,
+							util.TagKeyPrefix:  fmt.Sprintf("%s=%s", testTagName, testTagValue),
 						},
 						ClaimSize:   driver.MinimumSizeForVolumeType(awscloud.VolumeTypeGP3),
 						VolumeMount: testsuites.DefaultGeneratedVolumeMount,
@@ -124,8 +124,8 @@ var _ = Describe("[ebs-csi-e2e] [single-az] [requires-aws-api] Dynamic Provision
 			Volumes: []testsuites.VolumeDetails{
 				{
 					CreateVolumeParameters: map[string]string{
-						ebscsidriver.VolumeTypeKey: awscloud.VolumeTypeGP3,
-						ebscsidriver.FSTypeKey:     ebscsidriver.FSTypeExt4,
+						util.VolumeTypeKey: awscloud.VolumeTypeGP3,
+						util.FSTypeKey:     util.FSTypeExt4,
 					},
 					ClaimSize:   driver.MinimumSizeForVolumeType(awscloud.VolumeTypeGP3),
 					VolumeMount: testsuites.DefaultGeneratedVolumeMount,
@@ -137,8 +137,8 @@ var _ = Describe("[ebs-csi-e2e] [single-az] [requires-aws-api] Dynamic Provision
 			Volumes: []testsuites.VolumeDetails{
 				{
 					CreateVolumeParameters: map[string]string{
-						ebscsidriver.VolumeTypeKey: awscloud.VolumeTypeGP3,
-						ebscsidriver.FSTypeKey:     ebscsidriver.FSTypeExt4,
+						util.VolumeTypeKey: awscloud.VolumeTypeGP3,
+						util.FSTypeKey:     util.FSTypeExt4,
 					},
 					ClaimSize:   driver.MinimumSizeForVolumeType(awscloud.VolumeTypeGP3),
 					VolumeMount: testsuites.DefaultGeneratedVolumeMount,
@@ -150,7 +150,7 @@ var _ = Describe("[ebs-csi-e2e] [single-az] [requires-aws-api] Dynamic Provision
 			Pod:         pod,
 			RestoredPod: restoredPod,
 			Parameters: map[string]string{
-				ebscsidriver.TagKeyPrefix: fmt.Sprintf("%s=%s", testTagName, testTagValue),
+				util.TagKeyPrefix: fmt.Sprintf("%s=%s", testTagName, testTagValue),
 			},
 			ValidateFunc: func(_ *volumesnapshotv1.VolumeSnapshot) {
 				validateEc2Snapshot(ec2Client, &ec2.DescribeSnapshotsInput{
@@ -178,8 +178,8 @@ var _ = Describe("[ebs-csi-e2e] [single-az] [requires-aws-api] Dynamic Provision
 			Volumes: []testsuites.VolumeDetails{
 				{
 					CreateVolumeParameters: map[string]string{
-						ebscsidriver.VolumeTypeKey: awscloud.VolumeTypeGP3,
-						ebscsidriver.FSTypeKey:     ebscsidriver.FSTypeExt4,
+						util.VolumeTypeKey: awscloud.VolumeTypeGP3,
+						util.FSTypeKey:     util.FSTypeExt4,
 					},
 					ClaimSize:   driver.MinimumSizeForVolumeType(awscloud.VolumeTypeGP3),
 					VolumeMount: testsuites.DefaultGeneratedVolumeMount,
@@ -191,8 +191,8 @@ var _ = Describe("[ebs-csi-e2e] [single-az] [requires-aws-api] Dynamic Provision
 			Volumes: []testsuites.VolumeDetails{
 				{
 					CreateVolumeParameters: map[string]string{
-						ebscsidriver.VolumeTypeKey: awscloud.VolumeTypeGP3,
-						ebscsidriver.FSTypeKey:     ebscsidriver.FSTypeExt4,
+						util.VolumeTypeKey: awscloud.VolumeTypeGP3,
+						util.FSTypeKey:     util.FSTypeExt4,
 					},
 					ClaimSize:   driver.MinimumSizeForVolumeType(awscloud.VolumeTypeGP3),
 					VolumeMount: testsuites.DefaultGeneratedVolumeMount,
@@ -204,7 +204,7 @@ var _ = Describe("[ebs-csi-e2e] [single-az] [requires-aws-api] Dynamic Provision
 			Pod:         pod,
 			RestoredPod: restoredPod,
 			Parameters: map[string]string{
-				ebscsidriver.FastSnapshotRestoreAvailabilityZones: fsrAvailabilityZone,
+				util.FastSnapshotRestoreAvailabilityZones: fsrAvailabilityZone,
 			},
 			ValidateFunc: func(snapshot *volumesnapshotv1.VolumeSnapshot) {
 				describeResult := validateEc2Snapshot(ec2Client, &ec2.DescribeSnapshotsInput{

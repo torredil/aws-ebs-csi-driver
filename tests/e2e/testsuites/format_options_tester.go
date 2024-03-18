@@ -15,7 +15,7 @@ limitations under the License.
 package testsuites
 
 import (
-	ebscsidriver "github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/tests/e2e/driver"
 	. "github.com/onsi/ginkgo/v2"
 	v1 "k8s.io/api/core/v1"
@@ -30,7 +30,7 @@ type FormatOptionTest struct {
 
 func (t *FormatOptionTest) Run(client clientset.Interface, namespace *v1.Namespace, ebsDriver driver.PVTestDriver) {
 	By("setting up pvc with custom format option")
-	volumeDetails := CreateVolumeDetails(t.CreateVolumeParameters, driver.MinimumSizeForVolumeType(t.CreateVolumeParameters[ebscsidriver.VolumeTypeKey]))
+	volumeDetails := CreateVolumeDetails(t.CreateVolumeParameters, driver.MinimumSizeForVolumeType(t.CreateVolumeParameters[util.VolumeTypeKey]))
 	testPvc, _ := volumeDetails.SetupDynamicPersistentVolumeClaim(client, namespace, ebsDriver)
 	defer testPvc.Cleanup()
 

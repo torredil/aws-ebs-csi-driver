@@ -20,16 +20,23 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"time"
 
 	"github.com/awslabs/volume-modifier-for-k8s/pkg/rpc"
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
-	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/internal"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/controller"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/identity"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/node"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/metrics"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
+	"k8s.io/component-base/logs/json"
 	"k8s.io/klog/v2"
+
+	logsapi "k8s.io/component-base/logs/api/v1"
 )
 
 // Mode is the operating mode of the CSI driver.
@@ -42,23 +49,13 @@ const (
 	NodeMode Mode = "node"
 	// AllMode is the mode that only starts both the controller and the node service.
 	AllMode Mode = "all"
-)
 
-const (
-	DriverName      = "ebs.csi.aws.com"
-	AwsPartitionKey = "topology." + DriverName + "/partition"
-	AwsAccountIDKey = "topology." + DriverName + "/account-id"
-	AwsRegionKey    = "topology." + DriverName + "/region"
-	AwsOutpostIDKey = "topology." + DriverName + "/outpost-id"
-
-	WellKnownTopologyKey = "topology.kubernetes.io/zone"
-	// DEPRECATED Use the WellKnownTopologyKey instead
-	TopologyKey = "topology." + DriverName + "/zone"
+	DefaultModifyVolumeRequestHandlerTimeout = 2 * time.Second
 )
 
 type Driver struct {
-	controllerService
-	nodeService
+	Controller *controller.Controller
+	Node       *node.NodeService
 
 	srv     *grpc.Server
 	options *DriverOptions
@@ -79,63 +76,86 @@ type DriverOptions struct {
 	modifyVolumeRequestHandlerTimeout time.Duration
 }
 
-func NewDriver(options ...func(*DriverOptions)) (*Driver, error) {
-	klog.InfoS("Driver Information", "Driver", DriverName, "Version", driverVersion)
+func NewDriver(c cloud.Cloud, options ...func(*DriverOptions)) (*Driver, error) {
+	driverName := util.DriverName
+	driverVersion := identity.GetVersion()
 
-	driverOptions := DriverOptions{
-		endpoint:                          DefaultCSIEndpoint,
+	klog.InfoS("Driver Information", "Driver", driverName, "Version", driverVersion)
+
+	o := DriverOptions{
+		endpoint:                          util.DefaultCSIEndpoint,
 		mode:                              AllMode,
 		modifyVolumeRequestHandlerTimeout: DefaultModifyVolumeRequestHandlerTimeout,
 	}
 	for _, option := range options {
-		option(&driverOptions)
-	}
-
-	if err := ValidateDriverOptions(&driverOptions); err != nil {
-		return nil, fmt.Errorf("Invalid driver options: %w", err)
+		option(&o)
 	}
 
 	driver := Driver{
-		options: &driverOptions,
+		options: &o,
 	}
 
-	switch driverOptions.mode {
+	// Register JSON logging format
+	if err := logsapi.RegisterLogFormat(logsapi.JSONLogFormat, json.Factory{}, logsapi.LoggingBetaOptions); err != nil {
+		klog.ErrorS(err, "Failed to register JSON log format")
+		os.Exit(1)
+	}
+
+	// Initialize OpenTelemetry tracing
+	//if options.ServerOptions.EnableOtelTracing {
+	//	initTracing()
+	//}
+
+	// Setup and start metrics server if endpoint is set
+	//if options.ServerOptions.HttpEndpoint != "" {
+	//	setupMetricsServer(options.ServerOptions.HttpEndpoint)
+	//}
+
+	switch o.mode {
 	case ControllerMode:
-		driver.controllerService = newControllerService(&driverOptions)
+		driver.Controller = controller.NewController(c, &controller.Options{
+			KubernetesClusterID: o.kubernetesClusterID,
+			AwsSdkDebugLog:      o.awsSdkDebugLog,
+			Batching:            o.batching,
+			WarnOnInvalidTag:    o.warnOnInvalidTag,
+			ExtraTags:           o.extraTags,
+		})
 	case NodeMode:
-		driver.nodeService = newNodeService(&driverOptions)
-	case AllMode:
-		driver.controllerService = newControllerService(&driverOptions)
-		driver.nodeService = newNodeService(&driverOptions)
+		driver.Node, _ = node.NewNodeService(&node.NodeOptions{
+			Region: "us-west-2",
+		})
 	default:
-		return nil, fmt.Errorf("unknown mode: %s", driverOptions.mode)
+		driver.Controller = controller.NewController(c, &controller.Options{
+			Batching: false,
+		})
+		driver.Node, _ = node.NewNodeService(&node.NodeOptions{
+			Region: "us-west-2",
+		})
 	}
 
 	return &driver, nil
 }
 
-func NewFakeDriver(e string, c cloud.Cloud, md *cloud.Metadata, m Mounter) (*Driver, error) {
-	driverOptions := &DriverOptions{
-		endpoint: e,
-		mode:     AllMode,
+func initTracing() {
+	exporter, err := InitOtelTracing()
+	if err != nil {
+		klog.ErrorS(err, "Failed to initialize OpenTelemetry tracing")
+		os.Exit(1)
 	}
-	driver := Driver{
-		options: driverOptions,
-		controllerService: controllerService{
-			cloud:               c,
-			inFlight:            internal.NewInFlight(),
-			driverOptions:       driverOptions,
-			modifyVolumeManager: newModifyVolumeManager(),
-		},
-		nodeService: nodeService{
-			metadata:         md,
-			deviceIdentifier: newNodeDeviceIdentifier(),
-			inFlight:         internal.NewInFlight(),
-			mounter:          m,
-			driverOptions:    driverOptions,
-		},
-	}
-	return &driver, nil
+
+	// Ensure traces are flushed before exiting
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := exporter.Shutdown(ctx); err != nil {
+			klog.ErrorS(err, "Failed to shutdown OpenTelemetry exporter")
+		}
+	}()
+}
+
+func setupMetricsServer(endpoint string) {
+	recorder := metrics.InitializeRecorder()
+	recorder.InitializeMetricsHandler(endpoint, "/metrics")
 }
 
 func (d *Driver) Run() error {
@@ -165,18 +185,19 @@ func (d *Driver) Run() error {
 	}
 	d.srv = grpc.NewServer(opts...)
 
-	csi.RegisterIdentityServer(d.srv, d)
+	identityService := &identity.Service{}
+	csi.RegisterIdentityServer(d.srv, identityService)
 
 	switch d.options.mode {
 	case ControllerMode:
-		csi.RegisterControllerServer(d.srv, d)
-		rpc.RegisterModifyServer(d.srv, d)
+		csi.RegisterControllerServer(d.srv, d.Controller)
+		rpc.RegisterModifyServer(d.srv, d.Controller)
 	case NodeMode:
-		csi.RegisterNodeServer(d.srv, d)
+		csi.RegisterNodeServer(d.srv, d.Node)
 	case AllMode:
-		csi.RegisterControllerServer(d.srv, d)
-		csi.RegisterNodeServer(d.srv, d)
-		rpc.RegisterModifyServer(d.srv, d)
+		csi.RegisterControllerServer(d.srv, d.Controller)
+		csi.RegisterNodeServer(d.srv, d.Node)
+		rpc.RegisterModifyServer(d.srv, d.Controller)
 	default:
 		return fmt.Errorf("unknown mode: %s", d.options.mode)
 	}
@@ -187,88 +208,4 @@ func (d *Driver) Run() error {
 
 func (d *Driver) Stop() {
 	d.srv.Stop()
-}
-
-func WithEndpoint(endpoint string) func(*DriverOptions) {
-	return func(o *DriverOptions) {
-		o.endpoint = endpoint
-	}
-}
-
-func WithExtraTags(extraTags map[string]string) func(*DriverOptions) {
-	return func(o *DriverOptions) {
-		o.extraTags = extraTags
-	}
-}
-
-func WithExtraVolumeTags(extraVolumeTags map[string]string) func(*DriverOptions) {
-	return func(o *DriverOptions) {
-		if o.extraTags == nil && extraVolumeTags != nil {
-			klog.InfoS("DEPRECATION WARNING: --extra-volume-tags is deprecated, please use --extra-tags instead")
-			o.extraTags = extraVolumeTags
-		}
-	}
-}
-
-func WithMode(mode Mode) func(*DriverOptions) {
-	return func(o *DriverOptions) {
-		o.mode = mode
-	}
-}
-
-func WithVolumeAttachLimit(volumeAttachLimit int64) func(*DriverOptions) {
-	return func(o *DriverOptions) {
-		o.volumeAttachLimit = volumeAttachLimit
-	}
-}
-
-func WithReservedVolumeAttachments(reservedVolumeAttachments int) func(*DriverOptions) {
-	return func(o *DriverOptions) {
-		o.reservedVolumeAttachments = reservedVolumeAttachments
-	}
-}
-
-func WithBatching(enableBatching bool) func(*DriverOptions) {
-	return func(o *DriverOptions) {
-		o.batching = enableBatching
-	}
-}
-
-func WithKubernetesClusterID(clusterID string) func(*DriverOptions) {
-	return func(o *DriverOptions) {
-		o.kubernetesClusterID = clusterID
-	}
-}
-
-func WithAwsSdkDebugLog(enableSdkDebugLog bool) func(*DriverOptions) {
-	return func(o *DriverOptions) {
-		o.awsSdkDebugLog = enableSdkDebugLog
-	}
-}
-
-func WithWarnOnInvalidTag(warnOnInvalidTag bool) func(*DriverOptions) {
-	return func(o *DriverOptions) {
-		o.warnOnInvalidTag = warnOnInvalidTag
-	}
-}
-
-func WithUserAgentExtra(userAgentExtra string) func(*DriverOptions) {
-	return func(o *DriverOptions) {
-		o.userAgentExtra = userAgentExtra
-	}
-}
-
-func WithOtelTracing(enableOtelTracing bool) func(*DriverOptions) {
-	return func(o *DriverOptions) {
-		o.otelTracing = enableOtelTracing
-	}
-}
-
-func WithModifyVolumeRequestHandlerTimeout(timeout time.Duration) func(*DriverOptions) {
-	return func(o *DriverOptions) {
-		if timeout == 0 {
-			return
-		}
-		o.modifyVolumeRequestHandlerTimeout = timeout
-	}
 }

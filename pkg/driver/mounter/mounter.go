@@ -1,8 +1,5 @@
-//go:build linux
-// +build linux
-
 /*
-Copyright 2020 The Kubernetes Authors.
+Copyright 2019 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,12 +17,13 @@ limitations under the License.
 package mounter
 
 import (
-	"github.com/stretchr/testify/assert"
-	"testing"
+	"k8s.io/mount-utils"
+	utilexec "k8s.io/utils/exec"
 )
 
-func TestNewSafeMounter(t *testing.T) {
-	resp, err := NewSafeMounter()
-	assert.NotNil(t, resp)
-	assert.Nil(t, err)
+func NewSafeMounter() (*mount.SafeFormatAndMount, error) {
+	return &mount.SafeFormatAndMount{
+		Interface: mount.New(""),
+		Exec:      utilexec.New(),
+	}, nil
 }

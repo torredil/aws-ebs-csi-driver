@@ -14,28 +14,32 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package driver
+package identity
 
 import (
 	"context"
 
-	csi "github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"k8s.io/klog/v2"
 )
 
-func (d *Driver) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
-	klog.V(6).InfoS("GetPluginInfo: called", "args", *req)
-	resp := &csi.GetPluginInfoResponse{
-		Name:          DriverName,
-		VendorVersion: driverVersion,
-	}
+// Service implements the IdentityServer from CSI spec
+type Service struct{}
 
-	return resp, nil
+var _ csi.IdentityServer = &Service{}
+
+func (i *Service) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
+	klog.V(6).InfoS("GetPluginInfo: called", "args", *req)
+	return &csi.GetPluginInfoResponse{
+		Name:          util.DriverName,
+		VendorVersion: driverVersion,
+	}, nil
 }
 
-func (d *Driver) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
+func (i *Service) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
 	klog.V(6).InfoS("GetPluginCapabilities: called", "args", *req)
-	resp := &csi.GetPluginCapabilitiesResponse{
+	return &csi.GetPluginCapabilitiesResponse{
 		Capabilities: []*csi.PluginCapability{
 			{
 				Type: &csi.PluginCapability_Service_{
@@ -52,12 +56,10 @@ func (d *Driver) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCa
 				},
 			},
 		},
-	}
-
-	return resp, nil
+	}, nil
 }
 
-func (d *Driver) Probe(ctx context.Context, req *csi.ProbeRequest) (*csi.ProbeResponse, error) {
+func (i *Service) Probe(ctx context.Context, req *csi.ProbeRequest) (*csi.ProbeResponse, error) {
 	klog.V(6).InfoS("Probe: called", "args", *req)
 	return &csi.ProbeResponse{}, nil
 }

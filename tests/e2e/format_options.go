@@ -16,7 +16,8 @@ package e2e
 
 import (
 	"fmt"
-	ebscsidriver "github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver"
+
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/tests/e2e/driver"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/tests/e2e/testsuites"
 	. "github.com/onsi/ginkgo/v2"
@@ -27,7 +28,7 @@ import (
 )
 
 var (
-	testedFsTypes = []string{ebscsidriver.FSTypeExt4, ebscsidriver.FSTypeExt3, ebscsidriver.FSTypeXfs}
+	testedFsTypes = []string{util.FSTypeExt4, util.FSTypeExt3, util.FSTypeXfs}
 )
 
 var _ = Describe("[ebs-csi-e2e] [single-az] [format-options] Formatting a volume", func() {
@@ -49,41 +50,41 @@ var _ = Describe("[ebs-csi-e2e] [single-az] [format-options] Formatting a volume
 	for _, fsType := range testedFsTypes {
 
 		formatOptionTests := map[string]testsuites.FormatOptionTest{
-			ebscsidriver.BlockSizeKey: {
+			util.BlockSizeKey: {
 				CreateVolumeParameters: map[string]string{
-					ebscsidriver.BlockSizeKey: "1024",
-					ebscsidriver.FSTypeKey:    fsType,
+					util.BlockSizeKey: "1024",
+					util.FSTypeKey:    fsType,
 				},
 			},
-			ebscsidriver.InodeSizeKey: {
+			util.InodeSizeKey: {
 				CreateVolumeParameters: map[string]string{
-					ebscsidriver.InodeSizeKey: "512",
-					ebscsidriver.FSTypeKey:    fsType,
+					util.InodeSizeKey: "512",
+					util.FSTypeKey:    fsType,
 				},
 			},
-			ebscsidriver.BytesPerInodeKey: {
+			util.BytesPerInodeKey: {
 				CreateVolumeParameters: map[string]string{
-					ebscsidriver.BytesPerInodeKey: "8192",
-					ebscsidriver.FSTypeKey:        fsType,
+					util.BytesPerInodeKey: "8192",
+					util.FSTypeKey:        fsType,
 				},
 			},
-			ebscsidriver.NumberOfInodesKey: {
+			util.NumberOfInodesKey: {
 				CreateVolumeParameters: map[string]string{
-					ebscsidriver.NumberOfInodesKey: "200192",
-					ebscsidriver.FSTypeKey:         fsType,
+					util.NumberOfInodesKey: "200192",
+					util.FSTypeKey:         fsType,
 				},
 			},
-			ebscsidriver.Ext4BigAllocKey: {
+			util.Ext4BigAllocKey: {
 				CreateVolumeParameters: map[string]string{
-					ebscsidriver.Ext4BigAllocKey: "true",
-					ebscsidriver.FSTypeKey:       fsType,
+					util.Ext4BigAllocKey: "true",
+					util.FSTypeKey:       fsType,
 				},
 			},
-			ebscsidriver.Ext4ClusterSizeKey: {
+			util.Ext4ClusterSizeKey: {
 				CreateVolumeParameters: map[string]string{
-					ebscsidriver.Ext4BigAllocKey:    "true",
-					ebscsidriver.Ext4ClusterSizeKey: "16384",
-					ebscsidriver.FSTypeKey:          fsType,
+					util.Ext4BigAllocKey:    "true",
+					util.Ext4ClusterSizeKey: "16384",
+					util.FSTypeKey:          fsType,
 				},
 			},
 		}
@@ -106,6 +107,6 @@ var _ = Describe("[ebs-csi-e2e] [single-az] [format-options] Formatting a volume
 })
 
 func fsTypeDoesNotSupportFormatOptionParameter(fsType string, createVolumeParameterKey string) bool {
-	_, paramNotSupported := ebscsidriver.FileSystemConfigs[fsType].NotSupportedParams[createVolumeParameterKey]
+	_, paramNotSupported := util.FileSystemConfigs[fsType].NotSupportedParams[createVolumeParameterKey]
 	return paramNotSupported
 }

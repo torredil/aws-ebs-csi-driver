@@ -16,7 +16,7 @@ package e2e
 
 import (
 	awscloud "github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
-	ebscsidriver "github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/tests/e2e/driver"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/tests/e2e/testsuites"
 	. "github.com/onsi/ginkgo/v2"
@@ -28,8 +28,8 @@ import (
 
 var (
 	defaultModifyVolumeTestGp3CreateVolumeParameters = map[string]string{
-		ebscsidriver.VolumeTypeKey: awscloud.VolumeTypeGP3,
-		ebscsidriver.FSTypeKey:     ebscsidriver.FSTypeExt4,
+		util.VolumeTypeKey: awscloud.VolumeTypeGP3,
+		util.FSTypeKey:     util.FSTypeExt4,
 	}
 )
 
@@ -89,9 +89,9 @@ var (
 		},
 		"from io2 to gp3 with larger size and new iops and throughput annotations": {
 			CreateVolumeParameters: map[string]string{
-				ebscsidriver.VolumeTypeKey: awscloud.VolumeTypeIO2,
-				ebscsidriver.FSTypeKey:     ebscsidriver.FSTypeExt4,
-				ebscsidriver.IopsKey:       testsuites.DefaultIopsIoVolumes,
+				util.VolumeTypeKey: awscloud.VolumeTypeIO2,
+				util.FSTypeKey:     util.FSTypeExt4,
+				util.IopsKey:       testsuites.DefaultIopsIoVolumes,
 			},
 			ModifyVolumeAnnotations: map[string]string{
 				testsuites.AnnotationVolumeType: awscloud.VolumeTypeGP3,

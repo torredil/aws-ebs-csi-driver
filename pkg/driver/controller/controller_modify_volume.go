@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package driver
+package controller
 
 import (
 	"context"
@@ -114,12 +114,14 @@ func (h *modifyVolumeRequestHandler) mergeModifyVolumeRequest(r *modifyVolumeReq
 	}
 }
 
+const DefaultModifyVolumeRequestHandlerTimeout = 2 * time.Second
+
 // processModifyVolumeRequests method starts its execution with a timer that has modifyVolumeRequestHandlerTimeout as its timeout value.
 // When the Timer times out, it calls the ec2 API to perform the volume modification. processModifyVolumeRequests method sends back the response of
 // the ec2 API call to the CSI Driver main thread via response channels.
 // This method receives requests from CSI driver main thread via the request channel. When a new request is received from the request channel, we first
 // validate the new request. If the new request is acceptable, it will be merged with the existing request for the volume.
-func (d *controllerService) processModifyVolumeRequests(h *modifyVolumeRequestHandler, responseChans []chan modifyVolumeResponse) {
+func (d *Controller) processModifyVolumeRequests(h *modifyVolumeRequestHandler, responseChans []chan modifyVolumeResponse) {
 	klog.V(4).InfoS("Start processing ModifyVolumeRequest for ", "volume ID", h.volumeID)
 	process := func(req *modifyVolumeRequest) {
 		if err := h.validateModifyVolumeRequest(req); err != nil {
@@ -134,7 +136,7 @@ func (d *controllerService) processModifyVolumeRequests(h *modifyVolumeRequestHa
 		select {
 		case req := <-h.requestChan:
 			process(req)
-		case <-time.After(d.driverOptions.modifyVolumeRequestHandlerTimeout):
+		case <-time.After(DefaultModifyVolumeRequestHandlerTimeout):
 			d.modifyVolumeManager.requestHandlerMap.Delete(h.volumeID)
 			// At this point, no new requests can come in on the request channel because it has been removed from the map
 			// However, the request channel may still have requests waiting on it
@@ -166,7 +168,7 @@ func (d *controllerService) processModifyVolumeRequests(h *modifyVolumeRequestHa
 // If there’s ModifyVolumeRequestHandler for the volume, meaning that there is inflight request(s) for the volume, we will send the new request
 // to the goroutine for the volume via the receiving channel.
 // Note that each volume with inflight requests has their own goroutine which follows timeout schedule of their own.
-func (d *controllerService) addModifyVolumeRequest(volumeID string, r *modifyVolumeRequest) {
+func (d *Controller) addModifyVolumeRequest(volumeID string, r *modifyVolumeRequest) {
 	requestHandler := newModifyVolumeRequestHandler(volumeID, r)
 	handler, loaded := d.modifyVolumeManager.requestHandlerMap.LoadOrStore(volumeID, requestHandler)
 	if loaded {
@@ -178,7 +180,7 @@ func (d *controllerService) addModifyVolumeRequest(volumeID string, r *modifyVol
 	}
 }
 
-func (d *controllerService) executeModifyVolumeRequest(volumeID string, req *modifyVolumeRequest) (int64, error) {
+func (d *Controller) executeModifyVolumeRequest(volumeID string, req *modifyVolumeRequest) (int64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	actualSizeGiB, err := d.cloud.ResizeOrModifyDisk(ctx, volumeID, req.newSize, &req.modifyDiskOptions)
@@ -189,14 +191,14 @@ func (d *controllerService) executeModifyVolumeRequest(volumeID string, req *mod
 	}
 }
 
-func (d *controllerService) GetCSIDriverModificationCapability(
+func (d *Controller) GetCSIDriverModificationCapability(
 	_ context.Context,
 	_ *rpc.GetCSIDriverModificationCapabilityRequest,
 ) (*rpc.GetCSIDriverModificationCapabilityResponse, error) {
 	return &rpc.GetCSIDriverModificationCapabilityResponse{}, nil
 }
 
-func (d *controllerService) ModifyVolumeProperties(
+func (d *Controller) ModifyVolumeProperties(
 	ctx context.Context,
 	req *rpc.ModifyVolumePropertiesRequest,
 ) (*rpc.ModifyVolumePropertiesResponse, error) {
@@ -259,7 +261,7 @@ func parseModifyVolumeParameters(params map[string]string) (*cloud.ModifyDiskOpt
 	return &options, nil
 }
 
-func (d *controllerService) modifyVolumeWithCoalescing(ctx context.Context, volume string, options *cloud.ModifyDiskOptions) error {
+func (d *Controller) modifyVolumeWithCoalescing(ctx context.Context, volume string, options *cloud.ModifyDiskOptions) error {
 	responseChan := make(chan modifyVolumeResponse)
 	request := modifyVolumeRequest{
 		modifyDiskOptions: *options,

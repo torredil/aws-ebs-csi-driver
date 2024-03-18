@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	ebscsidriver "github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	k8srestclient "k8s.io/client-go/rest"
 
 	awscloud "github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
@@ -129,7 +129,7 @@ var _ = Describe("[ebs-csi-e2e] [single-az] Pre-Provisioned", func() {
 				Volumes: []testsuites.VolumeDetails{
 					{
 						VolumeID:                   volumeID,
-						PreProvisionedVolumeFsType: ebscsidriver.FSTypeExt4,
+						PreProvisionedVolumeFsType: util.FSTypeExt4,
 						ClaimSize:                  diskSize,
 						VolumeMount: testsuites.VolumeMountDetails{
 							NameGenerate:      "test-volume-",
@@ -173,7 +173,7 @@ var _ = Describe("[ebs-csi-e2e] [single-az] Pre-Provisioned", func() {
 				Volumes: []testsuites.VolumeDetails{
 					{
 						VolumeID:                   volumeID,
-						PreProvisionedVolumeFsType: ebscsidriver.FSTypeExt4,
+						PreProvisionedVolumeFsType: util.FSTypeExt4,
 						ClaimSize:                  diskSize,
 						VolumeMount: testsuites.VolumeMountDetails{
 							NameGenerate:      "test-volume-",
@@ -196,7 +196,7 @@ var _ = Describe("[ebs-csi-e2e] [single-az] Pre-Provisioned", func() {
 		volumes := []testsuites.VolumeDetails{
 			{
 				VolumeID:                   volumeID,
-				PreProvisionedVolumeFsType: ebscsidriver.FSTypeExt4,
+				PreProvisionedVolumeFsType: util.FSTypeExt4,
 				ClaimSize:                  diskSize,
 				ReclaimPolicy:              &reclaimPolicy,
 			},
@@ -214,7 +214,7 @@ var _ = Describe("[ebs-csi-e2e] [single-az] Pre-Provisioned", func() {
 		volumes := []testsuites.VolumeDetails{
 			{
 				VolumeID:                   volumeID,
-				PreProvisionedVolumeFsType: ebscsidriver.FSTypeExt4,
+				PreProvisionedVolumeFsType: util.FSTypeExt4,
 				ClaimSize:                  diskSize,
 				ReclaimPolicy:              &reclaimPolicy,
 			},
