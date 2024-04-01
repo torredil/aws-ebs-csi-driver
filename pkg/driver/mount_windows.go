@@ -21,10 +21,10 @@ package driver
 
 import (
 	"fmt"
-	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/mounter"
-	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/resizefs"
-	mountutils "k8s.io/mount-utils"
 	"regexp"
+
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/mounter"
+	mountutils "k8s.io/mount-utils"
 )
 
 func (m NodeMounter) FormatAndMountSensitiveWithFormatOptions(source string, target string, fstype string, options []string, sensitiveOptions []string, formatOptions []string) error {
@@ -151,10 +151,10 @@ func (m *NodeMounter) Unstage(target string) error {
 	return nil
 }
 
-func (m *NodeMounter) NewResizeFs() (Resizefs, error) {
+func (m *NodeMounter) Resize(devicePath, deviceMountPath string) (bool, error) {
 	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*mounter.CSIProxyMounter)
 	if !ok {
-		return nil, fmt.Errorf("failed to cast mounter to csi proxy mounter")
+		return false, fmt.Errorf("failed to cast mounter to csi proxy mounter")
 	}
-	return resizefs.NewResizeFs(proxyMounter), nil
+	return proxyMounter.ResizeVolume(deviceMountPath)
 }

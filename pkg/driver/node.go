@@ -290,12 +290,8 @@ func (d *nodeService) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 
 	if needResize {
-		r, err := d.mounter.NewResizeFs()
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Error attempting to create new ResizeFs:  %v", err)
-		}
 		klog.V(2).InfoS("Volume needs resizing", "source", source)
-		if _, err := r.Resize(source, target); err != nil {
+		if _, err := d.mounter.Resize(source, target); err != nil {
 			return nil, status.Errorf(codes.Internal, "Could not resize volume %q (%q):  %v", volumeID, source, err)
 		}
 	}
@@ -405,13 +401,8 @@ func (d *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return nil, status.Errorf(codes.Internal, "failed to find device path for device name %s for mount %s: %v", deviceName, req.GetVolumePath(), err)
 	}
 
-	r, err := d.mounter.NewResizeFs()
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Error attempting to create new ResizeFs:  %v", err)
-	}
-
 	// TODO: lock per volume ID to have some idempotency
-	if _, err = r.Resize(devicePath, volumePath); err != nil {
+	if _, err = d.mounter.Resize(devicePath, volumePath); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not resize volume %q (%q):  %v", volumeID, devicePath, err)
 	}
 

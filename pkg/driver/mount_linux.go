@@ -75,6 +75,10 @@ func (m *NodeMounter) NeedResize(devicePath string, deviceMountPath string) (boo
 	return mountutils.NewResizeFs(m.Exec).NeedResize(devicePath, deviceMountPath)
 }
 
+func (m *NodeMounter) Resize(devicePath, deviceMountPath string) (bool, error) {
+	return mountutils.NewResizeFs(m.Exec).Resize(devicePath, deviceMountPath)
+}
+
 func (m *NodeMounter) getExtSize(devicePath string) (uint64, uint64, error) {
 	output, err := m.SafeFormatAndMount.Exec.Command("dumpe2fs", "-h", devicePath).CombinedOutput()
 	if err != nil {
@@ -153,8 +157,4 @@ func (m *NodeMounter) Unstage(path string) error {
 	} else {
 		return err
 	}
-}
-
-func (m *NodeMounter) NewResizeFs() (Resizefs, error) {
-	return mountutils.NewResizeFs(m.Exec), nil
 }
