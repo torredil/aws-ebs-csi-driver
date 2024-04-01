@@ -28,6 +28,7 @@ import (
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/internal"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"google.golang.org/grpc/codes"
@@ -82,7 +83,7 @@ var (
 
 // nodeService represents the node service of CSI driver
 type nodeService struct {
-	metadata         cloud.MetadataService
+	metadata         metadata.MetadataService
 	mounter          Mounter
 	deviceIdentifier DeviceIdentifier
 	inFlight         *internal.InFlight
@@ -96,12 +97,12 @@ func newNodeService(options *Options) nodeService {
 	region := os.Getenv("AWS_REGION")
 	klog.InfoS("regionFromSession Node service", "region", region)
 
-	cfg := cloud.MetadataServiceConfig{
-		EC2MetadataClient: cloud.DefaultEC2MetadataClient,
-		K8sAPIClient:      cloud.DefaultKubernetesAPIClient,
+	cfg := metadata.MetadataServiceConfig{
+		EC2MetadataClient: metadata.DefaultEC2MetadataClient,
+		K8sAPIClient:      metadata.DefaultKubernetesAPIClient,
 	}
 
-	metadata, err := cloud.NewMetadataService(cfg, region)
+	metadata, err := metadata.NewMetadataService(cfg, region)
 	if err != nil {
 		panic(err)
 	}
@@ -114,7 +115,7 @@ func newNodeService(options *Options) nodeService {
 	// Remove taint from node to indicate driver startup success
 	// This is done at the last possible moment to prevent race conditions or false positive removals
 	time.AfterFunc(taintRemovalInitialDelay, func() {
-		removeTaintInBackground(cloud.DefaultKubernetesAPIClient, removeNotReadyTaint)
+		removeTaintInBackground(cfg.K8sAPIClient, removeNotReadyTaint)
 	})
 
 	return nodeService{
@@ -874,7 +875,7 @@ type JSONPatch struct {
 }
 
 // removeTaintInBackground is a goroutine that retries removeNotReadyTaint with exponential backoff
-func removeTaintInBackground(k8sClient cloud.KubernetesAPIClient, removalFunc func(cloud.KubernetesAPIClient) error) {
+func removeTaintInBackground(k8sClient metadata.KubernetesAPIClient, removalFunc func(metadata.KubernetesAPIClient) error) {
 	backoffErr := wait.ExponentialBackoff(taintRemovalBackoff, func() (bool, error) {
 		err := removalFunc(k8sClient)
 		if err != nil {
@@ -892,7 +893,7 @@ func removeTaintInBackground(k8sClient cloud.KubernetesAPIClient, removalFunc fu
 // removeNotReadyTaint removes the taint ebs.csi.aws.com/agent-not-ready from the local node
 // This taint can be optionally applied by users to prevent startup race conditions such as
 // https://github.com/kubernetes/kubernetes/issues/95911
-func removeNotReadyTaint(k8sClient cloud.KubernetesAPIClient) error {
+func removeNotReadyTaint(k8sClient metadata.KubernetesAPIClient) error {
 	nodeName := os.Getenv("CSI_NODE_NAME")
 	if nodeName == "" {
 		klog.V(4).InfoS("CSI_NODE_NAME missing, skipping taint removal")

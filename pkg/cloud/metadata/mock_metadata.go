@@ -2,7 +2,7 @@
 // Source: pkg/cloud/metadata_interface.go
 
 // Package cloud is a generated GoMock package.
-package cloud
+package metadata
 
 import (
 	context "context"

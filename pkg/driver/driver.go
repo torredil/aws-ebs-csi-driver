@@ -24,6 +24,7 @@ import (
 	"github.com/awslabs/volume-modifier-for-k8s/pkg/rpc"
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/internal"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -90,7 +91,7 @@ func NewDriver(options *Options) (*Driver, error) {
 	return &driver, nil
 }
 
-func NewFakeDriver(e string, c cloud.Cloud, md *cloud.Metadata, m Mounter) (*Driver, error) {
+func NewFakeDriver(e string, c cloud.Cloud, md *metadata.Metadata, m Mounter) (*Driver, error) {
 	options := &Options{
 		Endpoint:   e,
 		DriverMode: AllMode,
