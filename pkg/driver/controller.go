@@ -61,7 +61,7 @@ const isManagedByDriver = "true"
 type controllerService struct {
 	cloud               cloud.Cloud
 	inFlight            *internal.InFlight
-	driverOptions       *DriverOptions
+	driverOptions       *Options
 	modifyVolumeManager *modifyVolumeManager
 
 	rpc.UnimplementedModifyServer
@@ -78,7 +78,7 @@ var (
 
 // newControllerService creates a new controller service
 // it panics if failed to create the service
-func newControllerService(driverOptions *DriverOptions) controllerService {
+func newControllerService(o *Options) controllerService {
 	region := os.Getenv("AWS_REGION")
 	if region == "" {
 		klog.V(5).InfoS("[Debug] Retrieving region from metadata service")
@@ -95,8 +95,8 @@ func newControllerService(driverOptions *DriverOptions) controllerService {
 		region = metadata.GetRegion()
 	}
 
-	klog.InfoS("batching", "status", driverOptions.batching)
-	cloudSrv, err := NewCloudFunc(region, driverOptions.awsSdkDebugLog, driverOptions.userAgentExtra, driverOptions.batching)
+	klog.InfoS("batching", "status", o.Batching)
+	cloudSrv, err := NewCloudFunc(region, o.AwsSdkDebugLog, o.UserAgentExtra, o.Batching)
 	if err != nil {
 		panic(err)
 	}
@@ -104,7 +104,7 @@ func newControllerService(driverOptions *DriverOptions) controllerService {
 	return controllerService{
 		cloud:               cloudSrv,
 		inFlight:            internal.NewInFlight(),
-		driverOptions:       driverOptions,
+		driverOptions:       o,
 		modifyVolumeManager: newModifyVolumeManager(),
 	}
 }
@@ -325,22 +325,22 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	outpostArn := getOutpostArn(req.GetAccessibilityRequirements())
 
 	// fill volume tags
-	if d.driverOptions.kubernetesClusterID != "" {
-		resourceLifecycleTag := ResourceLifecycleTagPrefix + d.driverOptions.kubernetesClusterID
+	if d.driverOptions.KubernetesClusterID != "" {
+		resourceLifecycleTag := ResourceLifecycleTagPrefix + d.driverOptions.KubernetesClusterID
 		volumeTags[resourceLifecycleTag] = ResourceLifecycleOwned
-		volumeTags[NameTag] = d.driverOptions.kubernetesClusterID + "-dynamic-" + volName
-		volumeTags[KubernetesClusterTag] = d.driverOptions.kubernetesClusterID
+		volumeTags[NameTag] = d.driverOptions.KubernetesClusterID + "-dynamic-" + volName
+		volumeTags[KubernetesClusterTag] = d.driverOptions.KubernetesClusterID
 	}
-	for k, v := range d.driverOptions.extraTags {
+	for k, v := range d.driverOptions.ExtraTags {
 		volumeTags[k] = v
 	}
 
-	addTags, err := template.Evaluate(scTags, tProps, d.driverOptions.warnOnInvalidTag)
+	addTags, err := template.Evaluate(scTags, tProps, d.driverOptions.WarnOnInvalidTag)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Error interpolating the tag value: %v", err)
 	}
 
-	if err = validateExtraTags(addTags, d.driverOptions.warnOnInvalidTag); err != nil {
+	if err = validateExtraTags(addTags, d.driverOptions.WarnOnInvalidTag); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid tag value: %v", err)
 	}
 
@@ -762,21 +762,21 @@ func (d *controllerService) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		}
 	}
 
-	addTags, err := template.Evaluate(vscTags, vsProps, d.driverOptions.warnOnInvalidTag)
+	addTags, err := template.Evaluate(vscTags, vsProps, d.driverOptions.WarnOnInvalidTag)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Error interpolating the tag value: %v", err)
 	}
 
-	if err = validateExtraTags(addTags, d.driverOptions.warnOnInvalidTag); err != nil {
+	if err = validateExtraTags(addTags, d.driverOptions.WarnOnInvalidTag); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid tag value: %v", err)
 	}
 
-	if d.driverOptions.kubernetesClusterID != "" {
-		resourceLifecycleTag := ResourceLifecycleTagPrefix + d.driverOptions.kubernetesClusterID
+	if d.driverOptions.KubernetesClusterID != "" {
+		resourceLifecycleTag := ResourceLifecycleTagPrefix + d.driverOptions.KubernetesClusterID
 		snapshotTags[resourceLifecycleTag] = ResourceLifecycleOwned
-		snapshotTags[NameTag] = d.driverOptions.kubernetesClusterID + "-dynamic-" + snapshotName
+		snapshotTags[NameTag] = d.driverOptions.KubernetesClusterID + "-dynamic-" + snapshotName
 	}
-	for k, v := range d.driverOptions.extraTags {
+	for k, v := range d.driverOptions.ExtraTags {
 		snapshotTags[k] = v
 	}
 
