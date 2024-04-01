@@ -28,6 +28,7 @@ import (
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
 
@@ -64,7 +65,7 @@ type Driver struct {
 	options *Options
 }
 
-func NewDriver(o *Options, c cloud.Cloud, m metadata.MetadataService, k8sAPIClient metadata.KubernetesAPIClient) (*Driver, error) {
+func NewDriver(o *Options, c cloud.Cloud, m metadata.MetadataService, k8sAPIClient kubernetes.Interface) (*Driver, error) {
 	klog.InfoS("Driver Information", "Driver", DriverName, "Version", driverVersion)
 
 	if err := ValidateDriverOptions(o); err != nil {

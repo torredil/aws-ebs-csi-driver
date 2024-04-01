@@ -92,7 +92,7 @@ type nodeService struct {
 
 // newNodeService creates a new node service
 // it panics if failed to create the service
-func newNodeService(options *Options, metadata metadata.MetadataService, k8sAPIClient metadata.KubernetesAPIClient) nodeService {
+func newNodeService(options *Options, metadata metadata.MetadataService, k8sAPIClient kubernetes.Interface) nodeService {
 	nodeMounter, err := newNodeMounter()
 	if err != nil {
 		panic(err)
@@ -852,7 +852,7 @@ type JSONPatch struct {
 }
 
 // removeTaintInBackground is a goroutine that retries removeNotReadyTaint with exponential backoff
-func removeTaintInBackground(k8sClient metadata.KubernetesAPIClient, removalFunc func(metadata.KubernetesAPIClient) error) {
+func removeTaintInBackground(k8sClient kubernetes.Interface, removalFunc func(kubernetes.Interface) error) {
 	backoffErr := wait.ExponentialBackoff(taintRemovalBackoff, func() (bool, error) {
 		err := removalFunc(k8sClient)
 		if err != nil {
@@ -870,25 +870,19 @@ func removeTaintInBackground(k8sClient metadata.KubernetesAPIClient, removalFunc
 // removeNotReadyTaint removes the taint ebs.csi.aws.com/agent-not-ready from the local node
 // This taint can be optionally applied by users to prevent startup race conditions such as
 // https://github.com/kubernetes/kubernetes/issues/95911
-func removeNotReadyTaint(k8sClient metadata.KubernetesAPIClient) error {
+func removeNotReadyTaint(k8sClient kubernetes.Interface) error {
 	nodeName := os.Getenv("CSI_NODE_NAME")
 	if nodeName == "" {
 		klog.V(4).InfoS("CSI_NODE_NAME missing, skipping taint removal")
 		return nil
 	}
 
-	clientset, err := k8sClient()
-	if err != nil {
-		klog.V(4).InfoS("Failed to setup k8s client")
-		return nil //lint:ignore nilerr If there are no k8s credentials, treat that as a soft failure
-	}
-
-	node, err := clientset.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+	node, err := k8sClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
-	err = checkAllocatable(clientset, nodeName)
+	err = checkAllocatable(k8sClient, nodeName)
 	if err != nil {
 		return err
 	}
@@ -925,7 +919,7 @@ func removeNotReadyTaint(k8sClient metadata.KubernetesAPIClient) error {
 		return err
 	}
 
-	_, err = clientset.CoreV1().Nodes().Patch(context.Background(), nodeName, k8stypes.JSONPatchType, patch, metav1.PatchOptions{})
+	_, err = k8sClient.CoreV1().Nodes().Patch(context.Background(), nodeName, k8stypes.JSONPatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		return err
 	}

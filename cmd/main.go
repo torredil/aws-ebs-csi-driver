@@ -138,16 +138,23 @@ func main() {
 		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
 
-	metadataService, err := metadata.NewMetadataService(metadata.MetadataServiceConfig{
+	cfg := metadata.MetadataServiceConfig{
 		EC2MetadataClient: metadata.DefaultEC2MetadataClient,
 		K8sAPIClient:      metadata.DefaultKubernetesAPIClient,
-	}, region)
+	}
+
+	metadataService, err := metadata.NewMetadataService(cfg, region)
 	if err != nil {
 		klog.ErrorS(err, "failed to create metadata service")
 		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
 
-	drv, err := driver.NewDriver(&options, cloudService, metadataService, metadata.DefaultKubernetesAPIClient)
+	k8sClient, err := cfg.K8sAPIClient()
+	if err != nil {
+		klog.InfoS("failed to create k8s client", "err", err)
+	}
+
+	drv, err := driver.NewDriver(&options, cloudService, metadataService, k8sClient)
 	if err != nil {
 		klog.ErrorS(err, "failed to create driver")
 		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
