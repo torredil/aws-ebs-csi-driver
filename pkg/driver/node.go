@@ -92,21 +92,7 @@ type nodeService struct {
 
 // newNodeService creates a new node service
 // it panics if failed to create the service
-func newNodeService(options *Options) nodeService {
-	klog.V(5).InfoS("[Debug] Retrieving node info from metadata service")
-	region := os.Getenv("AWS_REGION")
-	klog.InfoS("regionFromSession Node service", "region", region)
-
-	cfg := metadata.MetadataServiceConfig{
-		EC2MetadataClient: metadata.DefaultEC2MetadataClient,
-		K8sAPIClient:      metadata.DefaultKubernetesAPIClient,
-	}
-
-	metadata, err := metadata.NewMetadataService(cfg, region)
-	if err != nil {
-		panic(err)
-	}
-
+func newNodeService(options *Options, metadata metadata.MetadataService, k8sAPIClient metadata.KubernetesAPIClient) nodeService {
 	nodeMounter, err := newNodeMounter()
 	if err != nil {
 		panic(err)
@@ -115,7 +101,7 @@ func newNodeService(options *Options) nodeService {
 	// Remove taint from node to indicate driver startup success
 	// This is done at the last possible moment to prevent race conditions or false positive removals
 	time.AfterFunc(taintRemovalInitialDelay, func() {
-		removeTaintInBackground(cfg.K8sAPIClient, removeNotReadyTaint)
+		removeTaintInBackground(k8sAPIClient, removeNotReadyTaint)
 	})
 
 	return nodeService{

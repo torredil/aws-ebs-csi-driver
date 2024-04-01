@@ -25,7 +25,6 @@ import (
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud/metadata"
-	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/internal"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -65,53 +64,29 @@ type Driver struct {
 	options *Options
 }
 
-func NewDriver(options *Options) (*Driver, error) {
+func NewDriver(o *Options, c cloud.Cloud, m metadata.MetadataService, k8sAPIClient metadata.KubernetesAPIClient) (*Driver, error) {
 	klog.InfoS("Driver Information", "Driver", DriverName, "Version", driverVersion)
 
-	if err := ValidateDriverOptions(options); err != nil {
+	if err := ValidateDriverOptions(o); err != nil {
 		return nil, fmt.Errorf("invalid driver options: %w", err)
 	}
 
 	driver := Driver{
-		options: options,
+		options: o,
 	}
 
-	switch options.DriverMode {
+	switch o.DriverMode {
 	case ControllerMode:
-		driver.controllerService = newControllerService(options)
+		driver.controllerService = newControllerService(o, c)
 	case NodeMode:
-		driver.nodeService = newNodeService(options)
+		driver.nodeService = newNodeService(o, m, k8sAPIClient)
 	case AllMode:
-		driver.controllerService = newControllerService(options)
-		driver.nodeService = newNodeService(options)
+		driver.controllerService = newControllerService(o, c)
+		driver.nodeService = newNodeService(o, m, k8sAPIClient)
 	default:
-		return nil, fmt.Errorf("unknown mode: %s", options.DriverMode)
+		return nil, fmt.Errorf("unknown mode: %s", o.DriverMode)
 	}
 
-	return &driver, nil
-}
-
-func NewFakeDriver(e string, c cloud.Cloud, md *metadata.Metadata, m Mounter) (*Driver, error) {
-	options := &Options{
-		Endpoint:   e,
-		DriverMode: AllMode,
-	}
-	driver := Driver{
-		options: options,
-		controllerService: controllerService{
-			cloud:               c,
-			inFlight:            internal.NewInFlight(),
-			driverOptions:       options,
-			modifyVolumeManager: newModifyVolumeManager(),
-		},
-		nodeService: nodeService{
-			metadata:         md,
-			deviceIdentifier: newNodeDeviceIdentifier(),
-			inFlight:         internal.NewInFlight(),
-			mounter:          m,
-			options:          options,
-		},
-	}
 	return &driver, nil
 }
 

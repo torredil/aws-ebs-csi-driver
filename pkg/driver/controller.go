@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -79,31 +78,9 @@ var (
 
 // newControllerService creates a new controller service
 // it panics if failed to create the service
-func newControllerService(o *Options) controllerService {
-	region := os.Getenv("AWS_REGION")
-	if region == "" {
-		klog.V(5).InfoS("[Debug] Retrieving region from metadata service")
-
-		cfg := metadata.MetadataServiceConfig{
-			EC2MetadataClient: metadata.DefaultEC2MetadataClient,
-			K8sAPIClient:      metadata.DefaultKubernetesAPIClient,
-		}
-		metadata, err := NewMetadataFunc(cfg, region)
-		if err != nil {
-			klog.ErrorS(err, "Could not determine region from any metadata service. The region can be manually supplied via the AWS_REGION environment variable.")
-			panic(err)
-		}
-		region = metadata.GetRegion()
-	}
-
-	klog.InfoS("batching", "status", o.Batching)
-	cloudSrv, err := NewCloudFunc(region, o.AwsSdkDebugLog, o.UserAgentExtra, o.Batching)
-	if err != nil {
-		panic(err)
-	}
-
+func newControllerService(o *Options, c cloud.Cloud) controllerService {
 	return controllerService{
-		cloud:               cloudSrv,
+		cloud:               c,
 		inFlight:            internal.NewInFlight(),
 		driverOptions:       o,
 		modifyVolumeManager: newModifyVolumeManager(),
