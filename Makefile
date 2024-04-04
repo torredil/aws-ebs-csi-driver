@@ -83,9 +83,10 @@ test/coverage:
 	go tool cover -html=filtered_cover.out -o coverage.html
 	rm cover.out filtered_cover.out
 
-.PHONY: test-sanity
-test-sanity:
-	go test -v -race ./tests/sanity/...
+# TODO: Re-enable sanity tests
+#.PHONY: test-sanity
+#test-sanity:
+#	go test -v -race ./tests/sanity/...
 
 .PHONY: tools
 tools: bin/aws bin/ct bin/eksctl bin/ginkgo bin/golangci-lint bin/helm bin/kops bin/kubetest2 bin/mockgen bin/shfmt

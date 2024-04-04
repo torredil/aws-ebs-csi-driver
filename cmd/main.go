@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/cmd/hooks"
-	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/metrics"
 	flag "github.com/spf13/pflag"
@@ -69,7 +69,7 @@ func main() {
 
 	switch cmd {
 	case "pre-stop-hook":
-		clientset, clientErr := cloud.DefaultKubernetesAPIClient()
+		clientset, clientErr := metadata.DefaultKubernetesAPIClient()
 		if clientErr != nil {
 			klog.ErrorS(err, "unable to communicate with k8s API")
 		} else {

@@ -28,6 +28,7 @@ import (
 	"github.com/awslabs/volume-modifier-for-k8s/pkg/rpc"
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/internal"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util/template"
@@ -70,7 +71,7 @@ type controllerService struct {
 var (
 	// NewMetadataFunc is a variable for the cloud.NewMetadata function that can
 	// be overwritten in unit tests.
-	NewMetadataFunc = cloud.NewMetadataService
+	NewMetadataFunc = metadata.NewMetadataService
 	// NewCloudFunc is a variable for the cloud.NewCloud function that can
 	// be overwritten in unit tests.
 	NewCloudFunc = cloud.NewCloud
@@ -83,9 +84,9 @@ func newControllerService(o *Options) controllerService {
 	if region == "" {
 		klog.V(5).InfoS("[Debug] Retrieving region from metadata service")
 
-		cfg := cloud.MetadataServiceConfig{
-			EC2MetadataClient: cloud.DefaultEC2MetadataClient,
-			K8sAPIClient:      cloud.DefaultKubernetesAPIClient,
+		cfg := metadata.MetadataServiceConfig{
+			EC2MetadataClient: metadata.DefaultEC2MetadataClient,
+			K8sAPIClient:      metadata.DefaultKubernetesAPIClient,
 		}
 		metadata, err := NewMetadataFunc(cfg, region)
 		if err != nil {

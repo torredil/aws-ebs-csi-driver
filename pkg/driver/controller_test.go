@@ -34,6 +34,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/internal"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -110,11 +111,11 @@ func TestNewControllerService(t *testing.T) {
 			if tc.region == "" {
 				mockCtl := gomock.NewController(t)
 				defer mockCtl.Finish()
-				mockMetadataService := cloud.NewMockMetadataService(mockCtl)
+				mockMetadataService := metadata.NewMockMetadataService(mockCtl)
 
 				oldNewMetadataFunc := NewMetadataFunc
 				defer func() { NewMetadataFunc = oldNewMetadataFunc }()
-				NewMetadataFunc = func(cfg cloud.MetadataServiceConfig, region string) (cloud.MetadataService, error) {
+				NewMetadataFunc = func(cfg metadata.MetadataServiceConfig, region string) (metadata.MetadataService, error) {
 					if tc.newMetadataFuncErrors {
 						return nil, testErr
 					}
