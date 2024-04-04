@@ -23,6 +23,7 @@ import (
 
 	"github.com/awslabs/volume-modifier-for-k8s/pkg/rpc"
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -42,12 +43,11 @@ const (
 )
 
 const (
-	DriverName      = "ebs.csi.aws.com"
-	AwsPartitionKey = "topology." + DriverName + "/partition"
-	AwsAccountIDKey = "topology." + DriverName + "/account-id"
-	AwsRegionKey    = "topology." + DriverName + "/region"
-	AwsOutpostIDKey = "topology." + DriverName + "/outpost-id"
-
+	DriverName               = "ebs.csi.aws.com"
+	AwsPartitionKey          = "topology." + DriverName + "/partition"
+	AwsAccountIDKey          = "topology." + DriverName + "/account-id"
+	AwsRegionKey             = "topology." + DriverName + "/region"
+	AwsOutpostIDKey          = "topology." + DriverName + "/outpost-id"
 	WellKnownZoneTopologyKey = "topology.kubernetes.io/zone"
 	// DEPRECATED Use the WellKnownZoneTopologyKey instead
 	ZoneTopologyKey = "topology." + DriverName + "/zone"
@@ -55,37 +55,36 @@ const (
 )
 
 type Driver struct {
-	controllerService
+	controller *ControllerService
 	nodeService
-
 	srv     *grpc.Server
 	options *Options
 }
 
-func NewDriver(o *Options) (*Driver, error) {
+func NewDriver(c cloud.Cloud, o *Options) (*Driver, error) {
 	klog.InfoS("Driver Information", "Driver", DriverName, "Version", driverVersion)
 
 	if err := ValidateDriverOptions(o); err != nil {
 		return nil, fmt.Errorf("invalid driver options: %w", err)
 	}
 
-	driver := Driver{
+	driver := &Driver{
 		options: o,
 	}
 
 	switch o.Mode {
 	case ControllerMode:
-		driver.controllerService = newControllerService(o)
+		driver.controller = NewControllerService(c, o)
 	case NodeMode:
 		driver.nodeService = newNodeService(o)
 	case AllMode:
-		driver.controllerService = newControllerService(o)
+		driver.controller = NewControllerService(c, o)
 		driver.nodeService = newNodeService(o)
 	default:
 		return nil, fmt.Errorf("unknown mode: %s", o.Mode)
 	}
 
-	return &driver, nil
+	return driver, nil
 }
 
 func (d *Driver) Run() error {
@@ -110,23 +109,24 @@ func (d *Driver) Run() error {
 	opts := []grpc.ServerOption{
 		grpc.UnaryInterceptor(logErr),
 	}
+
 	if d.options.EnableOtelTracing {
 		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	}
-	d.srv = grpc.NewServer(opts...)
 
+	d.srv = grpc.NewServer(opts...)
 	csi.RegisterIdentityServer(d.srv, d)
 
 	switch d.options.Mode {
 	case ControllerMode:
-		csi.RegisterControllerServer(d.srv, d)
-		rpc.RegisterModifyServer(d.srv, d)
+		csi.RegisterControllerServer(d.srv, d.controller)
+		rpc.RegisterModifyServer(d.srv, d.controller)
 	case NodeMode:
 		csi.RegisterNodeServer(d.srv, d)
 	case AllMode:
-		csi.RegisterControllerServer(d.srv, d)
+		csi.RegisterControllerServer(d.srv, d.controller)
 		csi.RegisterNodeServer(d.srv, d)
-		rpc.RegisterModifyServer(d.srv, d)
+		rpc.RegisterModifyServer(d.srv, d.controller)
 	default:
 		return fmt.Errorf("unknown mode: %s", d.options.Mode)
 	}

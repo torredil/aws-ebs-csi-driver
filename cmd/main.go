@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/cmd/hooks"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/metrics"
@@ -132,7 +133,29 @@ func main() {
 		r.InitializeMetricsHandler(options.HttpEndpoint, "/metrics")
 	}
 
-	drv, err := driver.NewDriver(&options)
+	region := os.Getenv("AWS_REGION")
+	if region == "" {
+		klog.V(5).InfoS("[Debug] Retrieving region from metadata service")
+		cfg := metadata.MetadataServiceConfig{
+			EC2MetadataClient: metadata.DefaultEC2MetadataClient,
+			K8sAPIClient:      metadata.DefaultKubernetesAPIClient,
+		}
+		metadata, metadataErr := metadata.NewMetadataService(cfg, region)
+		if metadataErr != nil {
+			klog.ErrorS(err, "Could not determine region from any metadata service. The region can be manually supplied via the AWS_REGION environment variable.")
+			panic(err)
+		}
+		region = metadata.GetRegion()
+	}
+
+	klog.InfoS("batching", "status", options.Batching)
+	cloud, err := cloud.NewCloud(region, options.AwsSdkDebugLog, options.UserAgentExtra, options.Batching)
+	if err != nil {
+		klog.ErrorS(err, "failed to create cloud service")
+		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
+	}
+
+	drv, err := driver.NewDriver(cloud, &options)
 	if err != nil {
 		klog.ErrorS(err, "failed to create driver")
 		klog.FlushAndExit(klog.ExitFlushTimeout, 1)

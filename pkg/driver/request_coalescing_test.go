@@ -34,9 +34,9 @@ import (
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
 )
 
-type modifyVolumeExecutor func(ctx context.Context, driver controllerService, name string, params map[string]string) error
+type modifyVolumeExecutor func(ctx context.Context, driver ControllerService, name string, params map[string]string) error
 
-func externalResizerModifyVolume(ctx context.Context, driver controllerService, name string, params map[string]string) error {
+func externalResizerModifyVolume(ctx context.Context, driver ControllerService, name string, params map[string]string) error {
 	_, err := driver.ControllerModifyVolume(ctx, &csi.ControllerModifyVolumeRequest{
 		VolumeId:          name,
 		MutableParameters: params,
@@ -44,7 +44,7 @@ func externalResizerModifyVolume(ctx context.Context, driver controllerService, 
 	return err
 }
 
-func modifierForK8sModifyVolume(ctx context.Context, driver controllerService, name string, params map[string]string) error {
+func modifierForK8sModifyVolume(ctx context.Context, driver ControllerService, name string, params map[string]string) error {
 	_, err := driver.ModifyVolumeProperties(ctx, &rpc.ModifyVolumePropertiesRequest{
 		Name:       name,
 		Parameters: params,
@@ -121,7 +121,7 @@ func testBasicRequestCoalescingSuccess(t *testing.T, executor modifyVolumeExecut
 		return newSize, nil
 	})
 
-	awsDriver := controllerService{
+	awsDriver := ControllerService{
 		cloud:    mockCloud,
 		inFlight: internal.NewInFlight(),
 		options: &Options{
@@ -175,7 +175,7 @@ func testRequestFail(t *testing.T, executor modifyVolumeExecutor) {
 		return 0, fmt.Errorf("ResizeOrModifyDisk failed")
 	})
 
-	awsDriver := controllerService{
+	awsDriver := ControllerService{
 		cloud:    mockCloud,
 		inFlight: internal.NewInFlight(),
 		options: &Options{
@@ -243,7 +243,7 @@ func testPartialFail(t *testing.T, executor modifyVolumeExecutor) {
 		return newSize, nil
 	})
 
-	awsDriver := controllerService{
+	awsDriver := ControllerService{
 		cloud:    mockCloud,
 		inFlight: internal.NewInFlight(),
 		options: &Options{
@@ -324,7 +324,7 @@ func testSequentialRequests(t *testing.T, executor modifyVolumeExecutor) {
 		return newSize, nil
 	}).Times(2)
 
-	awsDriver := controllerService{
+	awsDriver := ControllerService{
 		cloud:    mockCloud,
 		inFlight: internal.NewInFlight(),
 		options: &Options{
@@ -381,7 +381,7 @@ func testDuplicateRequest(t *testing.T, executor modifyVolumeExecutor) {
 		return newSize, nil
 	})
 
-	awsDriver := controllerService{
+	awsDriver := ControllerService{
 		cloud:    mockCloud,
 		inFlight: internal.NewInFlight(),
 		options: &Options{
@@ -445,7 +445,7 @@ func testContextTimeout(t *testing.T, executor modifyVolumeExecutor) {
 		return newSize, nil
 	})
 
-	awsDriver := controllerService{
+	awsDriver := ControllerService{
 		cloud:    mockCloud,
 		inFlight: internal.NewInFlight(),
 		options: &Options{
@@ -510,7 +510,7 @@ func testResponseReturnTiming(t *testing.T, executor modifyVolumeExecutor) {
 		return newSize, nil
 	})
 
-	awsDriver := controllerService{
+	awsDriver := ControllerService{
 		cloud:    mockCloud,
 		inFlight: internal.NewInFlight(),
 		options: &Options{
