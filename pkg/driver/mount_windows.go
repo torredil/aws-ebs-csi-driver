@@ -20,12 +20,93 @@ limitations under the License.
 package driver
 
 import (
+	"context"
 	"fmt"
 	"regexp"
+	"strconv"
+	"strings"
 
+	diskapi "github.com/kubernetes-csi/csi-proxy/client/api/disk/v1"
+	diskclient "github.com/kubernetes-csi/csi-proxy/client/groups/disk/v1"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/mounter"
+	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
+
+func (m NodeMounter) FindDevicePath(devicePath, volumeID, _, _ string) (string, error) {
+	diskClient, err := diskclient.NewClient()
+	if err != nil {
+		return "", fmt.Errorf("error creating csi-proxy disk client: %q", err)
+	}
+	defer diskClient.Close()
+
+	response, err := diskClient.ListDiskIDs(context.TODO(), &diskapi.ListDiskIDsRequest{})
+	if err != nil {
+		return "", fmt.Errorf("error listing disk ids: %q", err)
+	}
+
+	diskIDs := response.GetDiskIDs()
+
+	foundDiskNumber := ""
+	for diskNumber, diskID := range diskIDs {
+		serialNumber := diskID.GetSerialNumber()
+		cleanVolumeID := strings.ReplaceAll(volumeID, "-", "")
+		if strings.Contains(serialNumber, cleanVolumeID) {
+			foundDiskNumber = strconv.Itoa(int(diskNumber))
+			break
+		}
+	}
+
+	if foundDiskNumber == "" {
+		return "", fmt.Errorf("disk number for device path %q volume id %q not found", devicePath, volumeID)
+	}
+
+	return foundDiskNumber, nil
+}
+
+func (m NodeMounter) PreparePublishTarget(target string) error {
+	// On Windows, Mount will create the parent of target and mklink (create a symbolic link) at target later, so don't create a
+	// directory at target now. Otherwise mklink will error: "Cannot create a file when that file already exists".
+	// Instead, delete the target if it already exists (like if it was created by kubelet <1.20)
+	// https://github.com/kubernetes/kubernetes/pull/88759
+	klog.V(4).InfoS("NodePublishVolume: removing dir", "target", target)
+	exists, err := m.PathExists(target)
+	if err != nil {
+		return fmt.Errorf("error checking path %q exists: %v", target, err)
+	}
+
+	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*mounter.CSIProxyMounter)
+	if !ok {
+		return fmt.Errorf("failed to cast mounter to csi proxy mounter")
+	}
+
+	if exists {
+		if err := proxyMounter.Rmdir(target); err != nil {
+			return fmt.Errorf("error Rmdir target %q: %v", target, err)
+		}
+	}
+	return nil
+}
+
+// IsBlockDevice checks if the given path is a block device
+func (m NodeMounter) IsBlockDevice(fullPath string) (bool, error) {
+	return false, nil
+}
+
+// getBlockSizeBytes gets the size of the disk in bytes
+func (m NodeMounter) GetBlockSizeBytes(devicePath string) (int64, error) {
+	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*mounter.CSIProxyMounter)
+	if !ok {
+		return -1, fmt.Errorf("failed to cast mounter to csi proxy mounter")
+	}
+
+	sizeInBytes, err := proxyMounter.GetDeviceSize(devicePath)
+	if err != nil {
+		return -1, err
+	}
+
+	return sizeInBytes, nil
+}
 
 func (m NodeMounter) FormatAndMountSensitiveWithFormatOptions(source string, target string, fstype string, options []string, sensitiveOptions []string, formatOptions []string) error {
 	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*mounter.CSIProxyMounter)

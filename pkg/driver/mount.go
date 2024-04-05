@@ -39,6 +39,10 @@ type Mounter interface {
 	Unpublish(path string) error
 	Unstage(path string) error
 	Resize(devicePath, deviceMountPath string) (bool, error)
+	FindDevicePath(devicePath, volumeID, partition, region string) (string, error)
+	PreparePublishTarget(target string) error
+	IsBlockDevice(fullPath string) (bool, error)
+	GetBlockSizeBytes(devicePath string) (int64, error)
 }
 
 // NodeMounter implements Mounter.

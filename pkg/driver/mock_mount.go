@@ -48,6 +48,21 @@ func (mr *MockMounterMockRecorder) CanSafelySkipMountPointCheck() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CanSafelySkipMountPointCheck", reflect.TypeOf((*MockMounter)(nil).CanSafelySkipMountPointCheck))
 }
 
+// FindDevicePath mocks base method.
+func (m *MockMounter) FindDevicePath(devicePath, volumeID, partition, region string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindDevicePath", devicePath, volumeID, partition, region)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindDevicePath indicates an expected call of FindDevicePath.
+func (mr *MockMounterMockRecorder) FindDevicePath(devicePath, volumeID, partition, region interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindDevicePath", reflect.TypeOf((*MockMounter)(nil).FindDevicePath), devicePath, volumeID, partition, region)
+}
+
 // FormatAndMountSensitiveWithFormatOptions mocks base method.
 func (m *MockMounter) FormatAndMountSensitiveWithFormatOptions(source, target, fstype string, options, sensitiveOptions, formatOptions []string) error {
 	m.ctrl.T.Helper()
@@ -60,6 +75,21 @@ func (m *MockMounter) FormatAndMountSensitiveWithFormatOptions(source, target, f
 func (mr *MockMounterMockRecorder) FormatAndMountSensitiveWithFormatOptions(source, target, fstype, options, sensitiveOptions, formatOptions interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FormatAndMountSensitiveWithFormatOptions", reflect.TypeOf((*MockMounter)(nil).FormatAndMountSensitiveWithFormatOptions), source, target, fstype, options, sensitiveOptions, formatOptions)
+}
+
+// GetBlockSizeBytes mocks base method.
+func (m *MockMounter) GetBlockSizeBytes(devicePath string) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBlockSizeBytes", devicePath)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBlockSizeBytes indicates an expected call of GetBlockSizeBytes.
+func (mr *MockMounterMockRecorder) GetBlockSizeBytes(devicePath interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockSizeBytes", reflect.TypeOf((*MockMounter)(nil).GetBlockSizeBytes), devicePath)
 }
 
 // GetDeviceNameFromMount mocks base method.
@@ -91,6 +121,21 @@ func (m *MockMounter) GetMountRefs(pathname string) ([]string, error) {
 func (mr *MockMounterMockRecorder) GetMountRefs(pathname interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMountRefs", reflect.TypeOf((*MockMounter)(nil).GetMountRefs), pathname)
+}
+
+// IsBlockDevice mocks base method.
+func (m *MockMounter) IsBlockDevice(fullPath string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsBlockDevice", fullPath)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsBlockDevice indicates an expected call of IsBlockDevice.
+func (mr *MockMounterMockRecorder) IsBlockDevice(fullPath interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsBlockDevice", reflect.TypeOf((*MockMounter)(nil).IsBlockDevice), fullPath)
 }
 
 // IsCorruptedMnt mocks base method.
@@ -264,6 +309,20 @@ func (m *MockMounter) PathExists(path string) (bool, error) {
 func (mr *MockMounterMockRecorder) PathExists(path interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PathExists", reflect.TypeOf((*MockMounter)(nil).PathExists), path)
+}
+
+// PreparePublishTarget mocks base method.
+func (m *MockMounter) PreparePublishTarget(target string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PreparePublishTarget", target)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PreparePublishTarget indicates an expected call of PreparePublishTarget.
+func (mr *MockMounterMockRecorder) PreparePublishTarget(target interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PreparePublishTarget", reflect.TypeOf((*MockMounter)(nil).PreparePublishTarget), target)
 }
 
 // Resize mocks base method.

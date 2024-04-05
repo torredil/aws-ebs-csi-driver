@@ -223,7 +223,7 @@ func (d *nodeService) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		}
 	}
 
-	source, err := d.findDevicePath(devicePath, volumeID, partition)
+	source, err := d.mounter.FindDevicePath(devicePath, volumeID, partition, d.metadata.GetRegion())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to find device path %s. %v", devicePath, err)
 	}
@@ -388,13 +388,13 @@ func (d *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	} else {
 		// TODO use util.GenericResizeFS
 		// VolumeCapability is nil, check if volumePath point to a block device
-		isBlock, err := d.IsBlockDevice(volumePath)
+		isBlock, err := d.mounter.IsBlockDevice(volumePath)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to determine if volumePath [%v] is a block device: %v", volumePath, err)
 		}
 		if isBlock {
 			// Skip resizing for Block NodeExpandVolume
-			bcap, err := d.getBlockSizeBytes(volumePath)
+			bcap, err := d.mounter.GetBlockSizeBytes(volumePath)
 			if err != nil {
 				return nil, status.Errorf(codes.Internal, "failed to get block capacity on path %s: %v", req.GetVolumePath(), err)
 			}
@@ -408,7 +408,7 @@ func (d *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return nil, status.Errorf(codes.Internal, "failed to get device name from mount %s: %v", volumePath, err)
 	}
 
-	devicePath, err := d.findDevicePath(deviceName, volumeID, "")
+	devicePath, err := d.mounter.FindDevicePath(deviceName, volumeID, "", d.metadata.GetRegion())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to find device path for device name %s for mount %s: %v", deviceName, req.GetVolumePath(), err)
 	}
@@ -418,7 +418,7 @@ func (d *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return nil, status.Errorf(codes.Internal, "Could not resize volume %q (%q):  %v", volumeID, devicePath, err)
 	}
 
-	bcap, err := d.getBlockSizeBytes(devicePath)
+	bcap, err := d.mounter.GetBlockSizeBytes(devicePath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get block capacity on path %s: %v", req.GetVolumePath(), err)
 	}
@@ -523,13 +523,13 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 		return nil, status.Errorf(codes.NotFound, "path %s does not exist", req.GetVolumePath())
 	}
 
-	isBlock, err := d.IsBlockDevice(req.GetVolumePath())
+	isBlock, err := d.mounter.IsBlockDevice(req.GetVolumePath())
 
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to determine whether %s is block device: %v", req.GetVolumePath(), err)
 	}
 	if isBlock {
-		bcap, blockErr := d.getBlockSizeBytes(req.GetVolumePath())
+		bcap, blockErr := d.mounter.GetBlockSizeBytes(req.GetVolumePath())
 		if blockErr != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get block capacity on path %s: %v", req.GetVolumePath(), err)
 		}
@@ -638,7 +638,7 @@ func (d *nodeService) nodePublishVolumeForBlock(req *csi.NodePublishVolumeReques
 		}
 	}
 
-	source, err := d.findDevicePath(devicePath, volumeID, partition)
+	source, err := d.mounter.FindDevicePath(devicePath, volumeID, partition, d.metadata.GetRegion())
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to find device path %s. %v", devicePath, err)
 	}
@@ -743,7 +743,7 @@ func (d *nodeService) nodePublishVolumeForFileSystem(req *csi.NodePublishVolumeR
 		}
 	}
 
-	if err := d.preparePublishTarget(target); err != nil {
+	if err := d.mounter.PreparePublishTarget(target); err != nil {
 		return status.Errorf(codes.Internal, err.Error())
 	}
 
