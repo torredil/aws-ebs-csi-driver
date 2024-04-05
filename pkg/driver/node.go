@@ -81,51 +81,35 @@ var (
 	}
 )
 
-// nodeService represents the node service of CSI driver
-type nodeService struct {
+// NodeService represents the node service of CSI driver
+type NodeService struct {
 	metadata metadata.MetadataService
 	mounter  Mounter
 	inFlight *internal.InFlight
 	options  *Options
 }
 
-// newNodeService creates a new node service
-// it panics if failed to create the service
-func newNodeService(o *Options) nodeService {
+// NewNodeService creates a new node service
+func NewNodeService(o *Options, md metadata.MetadataService, m Mounter, k kubernetes.Interface) *NodeService {
 	klog.V(5).InfoS("[Debug] Retrieving node info from metadata service")
 	region := os.Getenv("AWS_REGION")
 	klog.InfoS("regionFromSession Node service", "region", region)
 
-	cfg := metadata.MetadataServiceConfig{
-		EC2MetadataClient: metadata.DefaultEC2MetadataClient,
-		K8sAPIClient:      metadata.DefaultKubernetesAPIClient,
-	}
-
-	metadata, err := metadata.NewMetadataService(cfg, region)
-	if err != nil {
-		panic(err)
-	}
-
-	nodeMounter, err := newNodeMounter()
-	if err != nil {
-		panic(err)
-	}
-
 	// Remove taint from node to indicate driver startup success
 	// This is done at the last possible moment to prevent race conditions or false positive removals
 	time.AfterFunc(taintRemovalInitialDelay, func() {
-		removeTaintInBackground(cfg.K8sAPIClient, removeNotReadyTaint)
+		removeTaintInBackground(k, removeNotReadyTaint)
 	})
 
-	return nodeService{
-		metadata: metadata,
-		mounter:  nodeMounter,
+	return &NodeService{
+		metadata: md,
+		mounter:  m,
 		inFlight: internal.NewInFlight(),
 		options:  o,
 	}
 }
 
-func (d *nodeService) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+func (d *NodeService) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	klog.V(4).InfoS("NodeStageVolume: called", "args", *req)
 
 	volumeID := req.GetVolumeId()
@@ -311,7 +295,7 @@ func (d *nodeService) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
-func (d *nodeService) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+func (d *NodeService) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	klog.V(4).InfoS("NodeUnstageVolume: called", "args", *req)
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
@@ -361,7 +345,7 @@ func (d *nodeService) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
-func (d *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
+func (d *NodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
 	klog.V(4).InfoS("NodeExpandVolume: called", "args", *req)
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
@@ -425,7 +409,7 @@ func (d *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	return &csi.NodeExpandVolumeResponse{CapacityBytes: bcap}, nil
 }
 
-func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+func (d *NodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	klog.V(4).InfoS("NodePublishVolume: called", "args", *req)
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
@@ -478,7 +462,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
-func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+func (d *NodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	klog.V(4).InfoS("NodeUnpublishVolume: called", "args", *req)
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
@@ -506,7 +490,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
-func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+func (d *NodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
 	klog.V(4).InfoS("NodeGetVolumeStats: called", "args", *req)
 	if len(req.GetVolumeId()) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "NodeGetVolumeStats volume ID was empty")
@@ -569,7 +553,7 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 
 }
 
-func (d *nodeService) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
+func (d *NodeService) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	klog.V(4).InfoS("NodeGetCapabilities: called", "args", *req)
 	var caps []*csi.NodeServiceCapability
 	for _, cap := range nodeCaps {
@@ -585,7 +569,7 @@ func (d *nodeService) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 	return &csi.NodeGetCapabilitiesResponse{Capabilities: caps}, nil
 }
 
-func (d *nodeService) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
+func (d *NodeService) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	klog.V(4).InfoS("NodeGetInfo: called", "args", *req)
 
 	zone := d.metadata.GetAvailabilityZone()
@@ -616,7 +600,7 @@ func (d *nodeService) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	}, nil
 }
 
-func (d *nodeService) nodePublishVolumeForBlock(req *csi.NodePublishVolumeRequest, mountOptions []string) error {
+func (d *NodeService) nodePublishVolumeForBlock(req *csi.NodePublishVolumeRequest, mountOptions []string) error {
 	target := req.GetTargetPath()
 	volumeID := req.GetVolumeId()
 	volumeContext := req.GetVolumeContext()
@@ -692,7 +676,7 @@ func (d *nodeService) nodePublishVolumeForBlock(req *csi.NodePublishVolumeReques
 
 // isMounted checks if target is mounted. It does NOT return an error if target
 // doesn't exist.
-func (d *nodeService) isMounted(_ string, target string) (bool, error) {
+func (d *NodeService) isMounted(_ string, target string) (bool, error) {
 	/*
 		Checking if it's a mount point using IsLikelyNotMountPoint. There are three different return values,
 		1. true, err when the directory does not exist or corrupted.
@@ -732,7 +716,7 @@ func (d *nodeService) isMounted(_ string, target string) (bool, error) {
 	return !notMnt, nil
 }
 
-func (d *nodeService) nodePublishVolumeForFileSystem(req *csi.NodePublishVolumeRequest, mountOptions []string, mode *csi.VolumeCapability_Mount) error {
+func (d *NodeService) nodePublishVolumeForFileSystem(req *csi.NodePublishVolumeRequest, mountOptions []string, mode *csi.VolumeCapability_Mount) error {
 	target := req.GetTargetPath()
 	source := req.GetStagingTargetPath()
 	if m := mode.Mount; m != nil {
@@ -775,7 +759,7 @@ func (d *nodeService) nodePublishVolumeForFileSystem(req *csi.NodePublishVolumeR
 }
 
 // getVolumesLimit returns the limit of volumes that the node supports
-func (d *nodeService) getVolumesLimit() int64 {
+func (d *NodeService) getVolumesLimit() int64 {
 	if d.options.VolumeAttachLimit >= 0 {
 		return d.options.VolumeAttachLimit
 	}
@@ -864,7 +848,7 @@ type JSONPatch struct {
 }
 
 // removeTaintInBackground is a goroutine that retries removeNotReadyTaint with exponential backoff
-func removeTaintInBackground(k8sClient metadata.KubernetesAPIClient, removalFunc func(metadata.KubernetesAPIClient) error) {
+func removeTaintInBackground(k8sClient kubernetes.Interface, removalFunc func(kubernetes.Interface) error) {
 	backoffErr := wait.ExponentialBackoff(taintRemovalBackoff, func() (bool, error) {
 		err := removalFunc(k8sClient)
 		if err != nil {
@@ -882,17 +866,11 @@ func removeTaintInBackground(k8sClient metadata.KubernetesAPIClient, removalFunc
 // removeNotReadyTaint removes the taint ebs.csi.aws.com/agent-not-ready from the local node
 // This taint can be optionally applied by users to prevent startup race conditions such as
 // https://github.com/kubernetes/kubernetes/issues/95911
-func removeNotReadyTaint(k8sClient metadata.KubernetesAPIClient) error {
+func removeNotReadyTaint(clientset kubernetes.Interface) error {
 	nodeName := os.Getenv("CSI_NODE_NAME")
 	if nodeName == "" {
 		klog.V(4).InfoS("CSI_NODE_NAME missing, skipping taint removal")
 		return nil
-	}
-
-	clientset, err := k8sClient()
-	if err != nil {
-		klog.V(4).InfoS("Failed to setup k8s client")
-		return nil //lint:ignore nilerr If there are no k8s credentials, treat that as a soft failure
 	}
 
 	node, err := clientset.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})

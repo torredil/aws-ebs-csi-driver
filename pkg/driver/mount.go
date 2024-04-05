@@ -51,7 +51,7 @@ type NodeMounter struct {
 	*mountutils.SafeFormatAndMount
 }
 
-func newNodeMounter() (Mounter, error) {
+func NewNodeMounter() (Mounter, error) {
 	// mounter.NewSafeMounter returns a SafeFormatAndMount
 	safeMounter, err := mounter.NewSafeMounter()
 	if err != nil {

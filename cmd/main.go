@@ -132,19 +132,22 @@ func main() {
 		r.InitializeMetricsHandler(options.HttpEndpoint, "/metrics")
 	}
 
+	cfg := metadata.MetadataServiceConfig{
+		EC2MetadataClient: metadata.DefaultEC2MetadataClient,
+		K8sAPIClient:      metadata.DefaultKubernetesAPIClient,
+	}
+
 	region := os.Getenv("AWS_REGION")
+
+	md, metadataErr := metadata.NewMetadataService(cfg, region)
+	if metadataErr != nil {
+		klog.ErrorS(err, "Could not determine region from any metadata service. The region can be manually supplied via the AWS_REGION environment variable.")
+		panic(err)
+	}
+
 	if region == "" {
 		klog.V(5).InfoS("[Debug] Retrieving region from metadata service")
-		cfg := metadata.MetadataServiceConfig{
-			EC2MetadataClient: metadata.DefaultEC2MetadataClient,
-			K8sAPIClient:      metadata.DefaultKubernetesAPIClient,
-		}
-		metadata, metadataErr := metadata.NewMetadataService(cfg, region)
-		if metadataErr != nil {
-			klog.ErrorS(metadataErr, "Could not determine region from any metadata service. The region can be manually supplied via the AWS_REGION environment variable.")
-			panic(err)
-		}
-		region = metadata.GetRegion()
+		region = md.GetRegion()
 	}
 
 	cloud, err := cloud.NewCloud(region, options.AwsSdkDebugLog, options.UserAgentExtra, options.Batching)
@@ -153,7 +156,17 @@ func main() {
 		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
 
-	drv, err := driver.NewDriver(cloud, &options)
+	m, err := driver.NewNodeMounter()
+	if err != nil {
+		panic(err)
+	}
+
+	k8sClient, err := cfg.K8sAPIClient()
+	if err != nil {
+		klog.V(4).InfoS("Failed to setup k8s client")
+	}
+
+	drv, err := driver.NewDriver(cloud, &options, m, md, k8sClient)
 	if err != nil {
 		klog.ErrorS(err, "failed to create driver")
 		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
