@@ -64,13 +64,13 @@ func (d *nodeService) findDevicePath(devicePath, volumeID, partition string) (st
 	}
 
 	if exists {
-		stat, lstatErr := d.deviceIdentifier.Lstat(devicePath)
+		stat, lstatErr := os.Lstat(devicePath)
 		if lstatErr != nil {
 			return "", fmt.Errorf("failed to lstat %q: %w", devicePath, err)
 		}
 
 		if stat.Mode()&os.ModeSymlink == os.ModeSymlink {
-			canonicalDevicePath, err = d.deviceIdentifier.EvalSymlinks(devicePath)
+			canonicalDevicePath, err = filepath.EvalSymlinks(devicePath)
 			if err != nil {
 				return "", fmt.Errorf("failed to evaluate symlink %q: %w", devicePath, err)
 			}
@@ -95,7 +95,7 @@ func (d *nodeService) findDevicePath(devicePath, volumeID, partition string) (st
 	// /dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_vol0fab1d5e3f72a5e23
 	nvmeName := "nvme-Amazon_Elastic_Block_Store_" + strippedVolumeName
 
-	nvmeDevicePath, err := findNvmeVolume(d.deviceIdentifier, nvmeName)
+	nvmeDevicePath, err := findNvmeVolume(nvmeName)
 
 	if err == nil {
 		klog.V(5).InfoS("[Debug] successfully resolved", "nvmeName", nvmeName, "nvmeDevicePath", nvmeDevicePath)
@@ -162,9 +162,9 @@ func errNoDevicePathFound(devicePath, volumeID string) error {
 
 // findNvmeVolume looks for the nvme volume with the specified name
 // It follows the symlink (if it exists) and returns the absolute path to the device
-func findNvmeVolume(deviceIdentifier DeviceIdentifier, findName string) (device string, err error) {
+func findNvmeVolume(findName string) (device string, err error) {
 	p := filepath.Join("/dev/disk/by-id/", findName)
-	stat, err := deviceIdentifier.Lstat(p)
+	stat, err := os.Lstat(p)
 	if err != nil {
 		if os.IsNotExist(err) {
 			klog.V(5).InfoS("[Debug] nvme path not found", "path", p)
@@ -179,7 +179,7 @@ func findNvmeVolume(deviceIdentifier DeviceIdentifier, findName string) (device 
 	}
 	// Find the target, resolving to an absolute path
 	// For example, /dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_vol0fab1d5e3f72a5e23 -> ../../nvme2n1
-	resolved, err := deviceIdentifier.EvalSymlinks(p)
+	resolved, err := filepath.EvalSymlinks(p)
 	if err != nil {
 		return "", fmt.Errorf("error reading target of symlink %q: %w", p, err)
 	}

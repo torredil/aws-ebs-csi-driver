@@ -83,11 +83,10 @@ var (
 
 // nodeService represents the node service of CSI driver
 type nodeService struct {
-	metadata         metadata.MetadataService
-	mounter          Mounter
-	deviceIdentifier DeviceIdentifier
-	inFlight         *internal.InFlight
-	options          *Options
+	metadata metadata.MetadataService
+	mounter  Mounter
+	inFlight *internal.InFlight
+	options  *Options
 }
 
 // newNodeService creates a new node service
@@ -119,11 +118,10 @@ func newNodeService(o *Options) nodeService {
 	})
 
 	return nodeService{
-		metadata:         metadata,
-		mounter:          nodeMounter,
-		deviceIdentifier: newNodeDeviceIdentifier(),
-		inFlight:         internal.NewInFlight(),
-		options:          o,
+		metadata: metadata,
+		mounter:  nodeMounter,
+		inFlight: internal.NewInFlight(),
+		options:  o,
 	}
 }
 
