@@ -21,10 +21,10 @@ package driver
 
 import (
 	"fmt"
-	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/mounter"
-	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/resizefs"
-	mountutils "k8s.io/mount-utils"
 	"regexp"
+
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/mounter"
+	mountutils "k8s.io/mount-utils"
 )
 
 func (m NodeMounter) FormatAndMountSensitiveWithFormatOptions(source string, target string, fstype string, options []string, sensitiveOptions []string, formatOptions []string) error {
@@ -99,6 +99,14 @@ func (m *NodeMounter) PathExists(path string) (bool, error) {
 	return proxyMounter.ExistsPath(path)
 }
 
+func (m *NodeMounter) Resize(devicePath, deviceMountPath string) (bool, error) {
+	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*mounter.CSIProxyMounter)
+	if !ok {
+		return false, fmt.Errorf("failed to cast mounter to csi proxy mounter")
+	}
+	return proxyMounter.ResizeVolume(deviceMountPath)
+}
+
 // NeedResize called at NodeStage to ensure file system is the correct size
 func (m *NodeMounter) NeedResize(devicePath, deviceMountPath string) (bool, error) {
 	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*mounter.CSIProxyMounter)
@@ -149,12 +157,4 @@ func (m *NodeMounter) Unstage(target string) error {
 		return err
 	}
 	return nil
-}
-
-func (m *NodeMounter) NewResizeFs() (Resizefs, error) {
-	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*mounter.CSIProxyMounter)
-	if !ok {
-		return nil, fmt.Errorf("failed to cast mounter to csi proxy mounter")
-	}
-	return resizefs.NewResizeFs(proxyMounter), nil
 }
