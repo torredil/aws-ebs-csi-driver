@@ -71,6 +71,10 @@ func (m *NodeMounter) PathExists(path string) (bool, error) {
 	return mountutils.PathExists(path)
 }
 
+func (m *NodeMounter) Resize(devicePath, deviceMountPath string) (bool, error) {
+	return mountutils.NewResizeFs(m.Exec).Resize(devicePath, deviceMountPath)
+}
+
 func (m *NodeMounter) NeedResize(devicePath string, deviceMountPath string) (bool, error) {
 	return mountutils.NewResizeFs(m.Exec).NeedResize(devicePath, deviceMountPath)
 }
@@ -153,8 +157,4 @@ func (m *NodeMounter) Unstage(path string) error {
 	} else {
 		return err
 	}
-}
-
-func (m *NodeMounter) NewResizeFs() (Resizefs, error) {
-	return mountutils.NewResizeFs(m.Exec), nil
 }
