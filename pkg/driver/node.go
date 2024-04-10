@@ -98,7 +98,7 @@ func NewNodeService(o *Options, md metadata.MetadataService, m Mounter, k kubern
 	// Remove taint from node to indicate driver startup success
 	// This is done at the last possible moment to prevent race conditions or false positive removals
 	time.AfterFunc(taintRemovalInitialDelay, func() {
-		removeTaintInBackground(k, removeNotReadyTaint)
+		removeTaintInBackground(k, taintRemovalBackoff, removeNotReadyTaint)
 	})
 
 	return &NodeService{
@@ -399,7 +399,7 @@ func (d *NodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 
 	// TODO: lock per volume ID to have some idempotency
 	if _, err = d.mounter.Resize(devicePath, volumePath); err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not resize volume %q (%q):  %v", volumeID, devicePath, err)
+		return nil, status.Errorf(codes.Internal, "Could not resize volume %q (%q): %v", volumeID, devicePath, err)
 	}
 
 	bcap, err := d.mounter.GetBlockSizeBytes(devicePath)
@@ -473,9 +473,11 @@ func (d *NodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if len(target) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Target path not provided")
 	}
+
 	if ok := d.inFlight.Insert(volumeID); !ok {
 		return nil, status.Errorf(codes.Aborted, VolumeOperationAlreadyExists, volumeID)
 	}
+
 	defer func() {
 		klog.V(4).InfoS("NodeUnPublishVolume: volume operation finished", "volumeId", volumeID)
 		d.inFlight.Delete(volumeID)
@@ -515,7 +517,7 @@ func (d *NodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	if isBlock {
 		bcap, blockErr := d.mounter.GetBlockSizeBytes(req.GetVolumePath())
 		if blockErr != nil {
-			return nil, status.Errorf(codes.Internal, "failed to get block capacity on path %s: %v", req.GetVolumePath(), err)
+			return nil, status.Errorf(codes.Internal, "failed to get block capacity on path %s: %v", req.GetVolumePath(), blockErr)
 		}
 		return &csi.NodeGetVolumeStatsResponse{
 			Usage: []*csi.VolumeUsage{
@@ -760,10 +762,10 @@ func (d *NodeService) nodePublishVolumeForFileSystem(req *csi.NodePublishVolumeR
 
 // getVolumesLimit returns the limit of volumes that the node supports
 func (d *NodeService) getVolumesLimit() int64 {
+
 	if d.options.VolumeAttachLimit >= 0 {
 		return d.options.VolumeAttachLimit
 	}
-
 	if util.IsSBE(d.metadata.GetRegion()) {
 		return sbeDeviceVolumeAttachmentLimit
 	}
@@ -848,8 +850,8 @@ type JSONPatch struct {
 }
 
 // removeTaintInBackground is a goroutine that retries removeNotReadyTaint with exponential backoff
-func removeTaintInBackground(k8sClient kubernetes.Interface, removalFunc func(kubernetes.Interface) error) {
-	backoffErr := wait.ExponentialBackoff(taintRemovalBackoff, func() (bool, error) {
+func removeTaintInBackground(k8sClient kubernetes.Interface, backoff wait.Backoff, removalFunc func(kubernetes.Interface) error) {
+	backoffErr := wait.ExponentialBackoff(backoff, func() (bool, error) {
 		err := removalFunc(k8sClient)
 		if err != nil {
 			klog.ErrorS(err, "Unexpected failure when attempting to remove node taint(s)")
@@ -947,7 +949,7 @@ func recheckFormattingOptionParameter(context map[string]string, key string, fsC
 	if ok {
 		// This check is already performed on the controller side
 		// However, because it is potentially security-sensitive, we redo it here to be safe
-		if isAlphanumeric := util.StringIsAlphanumeric(value); !isAlphanumeric {
+		if isAlphanumeric := util.StringIsAlphanumeric(v); !isAlphanumeric {
 			return "", status.Errorf(codes.InvalidArgument, "Invalid %s (aborting!): %v", key, err)
 		}
 
