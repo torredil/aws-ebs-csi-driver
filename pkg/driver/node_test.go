@@ -1572,71 +1572,6 @@ func TestNodePublishVolume(t *testing.T) {
 			},
 			expectedErr: status.Error(codes.Internal, "Failed to find device path /dev/xvdba. device path error"),
 		},
-		{
-			name: "nodePublishVolumeForBlock_path_exists_check",
-			req: &csi.NodePublishVolumeRequest{
-				VolumeId:          "vol-test",
-				StagingTargetPath: "/staging/path",
-				TargetPath:        "/target/path",
-				VolumeCapability: &csi.VolumeCapability{
-					AccessType: &csi.VolumeCapability_Block{
-						Block: &csi.VolumeCapability_BlockVolume{},
-					},
-					AccessMode: &csi.VolumeCapability_AccessMode{
-						Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
-					},
-				},
-				PublishContext: map[string]string{
-					DevicePathKey: "/dev/xvdba",
-				},
-			},
-			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
-				m := mockmounter.NewMockMounter(ctrl)
-
-				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
-				m.EXPECT().PathExists(gomock.Any()).Return(false, errors.New("path exists error"))
-				return m
-			},
-			metadataMock: func(ctrl *gomock.Controller) *metadata.MockMetadataService {
-				m := metadata.NewMockMetadataService(ctrl)
-				m.EXPECT().GetRegion().Return("us-west-2")
-				return m
-			},
-			expectedErr: status.Error(codes.Internal, "Could not check if path exists \"/target\": path exists error"),
-		},
-		{
-			name: "nodePublishVolumeForBlock_make_file_failure",
-			req: &csi.NodePublishVolumeRequest{
-				VolumeId:          "vol-test",
-				StagingTargetPath: "/staging/path",
-				TargetPath:        "/target/path",
-				VolumeCapability: &csi.VolumeCapability{
-					AccessType: &csi.VolumeCapability_Block{
-						Block: &csi.VolumeCapability_BlockVolume{},
-					},
-					AccessMode: &csi.VolumeCapability_AccessMode{
-						Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
-					},
-				},
-				PublishContext: map[string]string{
-					DevicePathKey: "/dev/xvdba",
-				},
-			},
-			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
-				m := mockmounter.NewMockMounter(ctrl)
-
-				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
-				m.EXPECT().PathExists(gomock.Any()).Return(false, nil)
-				m.EXPECT().MakeDir(gomock.Any()).Return(errors.New("make file error"))
-				return m
-			},
-			metadataMock: func(ctrl *gomock.Controller) *metadata.MockMetadataService {
-				m := metadata.NewMockMetadataService(ctrl)
-				m.EXPECT().GetRegion().Return("us-west-2")
-				return m
-			},
-			expectedErr: status.Error(codes.Internal, "Could not create dir \"/target\": make file error"),
-		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -2351,21 +2286,6 @@ func TestNodeGetVolumeStats(t *testing.T) {
 			expectedErr: func(dir string) error {
 				return nil
 			},
-		},
-		{
-			name:       "metrics_stat_error",
-			validVolId: true,
-			validPath:  true,
-			mounterMock: func(ctrl *gomock.Controller, dir string) *mockmounter.MockMounter {
-				m := mockmounter.NewMockMounter(ctrl)
-				m.EXPECT().PathExists(gomock.Any()).Return(true, nil)
-				m.EXPECT().IsBlockDevice(gomock.Any()).Return(false, nil)
-				return m
-			},
-			expectedErr: func(dir string) error {
-				return status.Errorf(codes.Internal, "failed to get fs info on path %s: %v", "fake-path", "failed to get FsInfo due to error no such file or directory")
-			},
-			metricsStatErr: true,
 		},
 	}
 

@@ -92,15 +92,11 @@ func (m *NodeMounter) FindDevicePath(devicePath, volumeID, partition, region str
 	}
 
 	if canonicalDevicePath == "" {
-		return "", errNoDevicePathFound(devicePath, volumeID)
+		return "", fmt.Errorf("no device path for device %q volume %q found", devicePath, volumeID)
 	}
 
 	canonicalDevicePath = m.appendPartition(canonicalDevicePath, partition)
 	return canonicalDevicePath, nil
-}
-
-func errNoDevicePathFound(devicePath, volumeID string) error {
-	return fmt.Errorf("no device path for device %q volume %q found", devicePath, volumeID)
 }
 
 // findNvmeVolume looks for the nvme volume with the specified name
@@ -257,67 +253,6 @@ func (m *NodeMounter) Resize(devicePath, deviceMountPath string) (bool, error) {
 
 func (m *NodeMounter) NeedResize(devicePath string, deviceMountPath string) (bool, error) {
 	return mountutils.NewResizeFs(m.Exec).NeedResize(devicePath, deviceMountPath)
-}
-
-func (m *NodeMounter) getExtSize(devicePath string) (uint64, uint64, error) {
-	output, err := m.SafeFormatAndMount.Exec.Command("dumpe2fs", "-h", devicePath).CombinedOutput()
-	if err != nil {
-		return 0, 0, fmt.Errorf("failed to read size of filesystem on %s: %w: %s", devicePath, err, string(output))
-	}
-
-	blockSize, blockCount, _ := m.parseFsInfoOutput(string(output), ":", "block size", "block count")
-
-	if blockSize == 0 {
-		return 0, 0, fmt.Errorf("could not find block size of device %s", devicePath)
-	}
-	if blockCount == 0 {
-		return 0, 0, fmt.Errorf("could not find block count of device %s", devicePath)
-	}
-	return blockSize, blockSize * blockCount, nil
-}
-
-func (m *NodeMounter) getXFSSize(devicePath string) (uint64, uint64, error) {
-	output, err := m.SafeFormatAndMount.Exec.Command("xfs_io", "-c", "statfs", devicePath).CombinedOutput()
-	if err != nil {
-		return 0, 0, fmt.Errorf("failed to read size of filesystem on %s: %w: %s", devicePath, err, string(output))
-	}
-
-	blockSize, blockCount, _ := m.parseFsInfoOutput(string(output), "=", "geom.bsize", "geom.datablocks")
-
-	if blockSize == 0 {
-		return 0, 0, fmt.Errorf("could not find block size of device %s", devicePath)
-	}
-	if blockCount == 0 {
-		return 0, 0, fmt.Errorf("could not find block count of device %s", devicePath)
-	}
-	return blockSize, blockSize * blockCount, nil
-}
-
-func (m *NodeMounter) parseFsInfoOutput(cmdOutput string, spliter string, blockSizeKey string, blockCountKey string) (uint64, uint64, error) {
-	lines := strings.Split(cmdOutput, "\n")
-	var blockSize, blockCount uint64
-	var err error
-
-	for _, line := range lines {
-		tokens := strings.Split(line, spliter)
-		if len(tokens) != 2 {
-			continue
-		}
-		key, value := strings.ToLower(strings.TrimSpace(tokens[0])), strings.ToLower(strings.TrimSpace(tokens[1]))
-		if key == blockSizeKey {
-			blockSize, err = strconv.ParseUint(value, 10, 64)
-			if err != nil {
-				return 0, 0, fmt.Errorf("failed to parse block size %s: %w", value, err)
-			}
-		}
-		if key == blockCountKey {
-			blockCount, err = strconv.ParseUint(value, 10, 64)
-			if err != nil {
-				return 0, 0, fmt.Errorf("failed to parse block count %s: %w", value, err)
-			}
-		}
-	}
-	return blockSize, blockCount, err
 }
 
 func (m *NodeMounter) Unpublish(path string) error {
