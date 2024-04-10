@@ -17,7 +17,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package driver
+package mounter
 
 import (
 	"fmt"
@@ -32,6 +32,11 @@ import (
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
+)
+
+const (
+	nvmeDiskPartitionSuffix = "p"
+	diskPartitionSuffix     = ""
 )
 
 func (m *NodeMounter) FindDevicePath(devicePath, volumeID, partition, region string) (string, error) {

@@ -14,10 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package driver
+package mounter
 
 import (
-	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/mounter"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -53,7 +52,7 @@ type NodeMounter struct {
 
 func NewNodeMounter() (Mounter, error) {
 	// mounter.NewSafeMounter returns a SafeFormatAndMount
-	safeMounter, err := mounter.NewSafeMounter()
+	safeMounter, err := NewSafeMounter()
 	if err != nil {
 		return nil, err
 	}

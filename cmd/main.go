@@ -28,6 +28,7 @@ import (
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/metrics"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/mounter"
 	flag "github.com/spf13/pflag"
 	"k8s.io/component-base/featuregate"
 	logsapi "k8s.io/component-base/logs/api/v1"
@@ -156,7 +157,7 @@ func main() {
 		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
 
-	m, err := driver.NewNodeMounter()
+	m, err := mounter.NewNodeMounter()
 	if err != nil {
 		panic(err)
 	}

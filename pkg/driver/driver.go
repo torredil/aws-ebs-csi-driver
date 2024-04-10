@@ -25,6 +25,7 @@ import (
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -63,7 +64,7 @@ type Driver struct {
 	options    *Options
 }
 
-func NewDriver(c cloud.Cloud, o *Options, m Mounter, md metadata.MetadataService, k kubernetes.Interface) (*Driver, error) {
+func NewDriver(c cloud.Cloud, o *Options, m mounter.Mounter, md metadata.MetadataService, k kubernetes.Interface) (*Driver, error) {
 	klog.InfoS("Driver Information", "Driver", DriverName, "Version", driverVersion)
 
 	if err := ValidateDriverOptions(o); err != nil {

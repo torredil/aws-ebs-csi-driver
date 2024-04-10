@@ -30,6 +30,7 @@ import (
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/internal"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -84,13 +85,13 @@ var (
 // NodeService represents the node service of CSI driver
 type NodeService struct {
 	metadata metadata.MetadataService
-	mounter  Mounter
+	mounter  mounter.Mounter
 	inFlight *internal.InFlight
 	options  *Options
 }
 
 // NewNodeService creates a new node service
-func NewNodeService(o *Options, md metadata.MetadataService, m Mounter, k kubernetes.Interface) *NodeService {
+func NewNodeService(o *Options, md metadata.MetadataService, m mounter.Mounter, k kubernetes.Interface) *NodeService {
 	klog.V(5).InfoS("[Debug] Retrieving node info from metadata service")
 	region := os.Getenv("AWS_REGION")
 	klog.InfoS("regionFromSession Node service", "region", region)

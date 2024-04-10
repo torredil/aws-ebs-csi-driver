@@ -17,7 +17,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package driver
+package mounter
 
 import (
 	"context"
@@ -28,9 +28,12 @@ import (
 
 	diskapi "github.com/kubernetes-csi/csi-proxy/client/api/disk/v1"
 	diskclient "github.com/kubernetes-csi/csi-proxy/client/groups/disk/v1"
-	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/mounter"
 	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
+)
+
+const (
+	DefaultBlockSize = 4096
 )
 
 func (m NodeMounter) FindDevicePath(devicePath, volumeID, _, _ string) (string, error) {
@@ -75,7 +78,7 @@ func (m NodeMounter) PreparePublishTarget(target string) error {
 		return fmt.Errorf("error checking path %q exists: %v", target, err)
 	}
 
-	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*mounter.CSIProxyMounter)
+	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*CSIProxyMounter)
 	if !ok {
 		return fmt.Errorf("failed to cast mounter to csi proxy mounter")
 	}
@@ -95,7 +98,7 @@ func (m NodeMounter) IsBlockDevice(fullPath string) (bool, error) {
 
 // getBlockSizeBytes gets the size of the disk in bytes
 func (m NodeMounter) GetBlockSizeBytes(devicePath string) (int64, error) {
-	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*mounter.CSIProxyMounter)
+	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*CSIProxyMounter)
 	if !ok {
 		return -1, fmt.Errorf("failed to cast mounter to csi proxy mounter")
 	}
@@ -109,7 +112,7 @@ func (m NodeMounter) GetBlockSizeBytes(devicePath string) (int64, error) {
 }
 
 func (m NodeMounter) FormatAndMountSensitiveWithFormatOptions(source string, target string, fstype string, options []string, sensitiveOptions []string, formatOptions []string) error {
-	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*mounter.CSIProxyMounter)
+	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*CSIProxyMounter)
 	if !ok {
 		return fmt.Errorf("failed to cast mounter to csi proxy mounter")
 	}
@@ -125,7 +128,7 @@ func (m NodeMounter) FormatAndMountSensitiveWithFormatOptions(source string, tar
 // Command to determine ref count would be something like:
 // Get-Volume -UniqueId "\\?\Volume{7c3da0c1-0000-0000-0000-010000000000}\" | Get-Partition | Select AccessPaths
 func (m NodeMounter) GetDeviceNameFromMount(mountPath string) (string, int, error) {
-	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*mounter.CSIProxyMounter)
+	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*CSIProxyMounter)
 	if !ok {
 		return "", 0, fmt.Errorf("failed to cast mounter to csi proxy mounter")
 	}
@@ -157,7 +160,7 @@ func (m NodeMounter) IsCorruptedMnt(err error) bool {
 }
 
 func (m *NodeMounter) MakeFile(path string) error {
-	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*mounter.CSIProxyMounter)
+	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*CSIProxyMounter)
 	if !ok {
 		return fmt.Errorf("failed to cast mounter to csi proxy mounter")
 	}
@@ -165,7 +168,7 @@ func (m *NodeMounter) MakeFile(path string) error {
 }
 
 func (m *NodeMounter) MakeDir(path string) error {
-	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*mounter.CSIProxyMounter)
+	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*CSIProxyMounter)
 	if !ok {
 		return fmt.Errorf("failed to cast mounter to csi proxy mounter")
 	}
@@ -173,7 +176,7 @@ func (m *NodeMounter) MakeDir(path string) error {
 }
 
 func (m *NodeMounter) PathExists(path string) (bool, error) {
-	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*mounter.CSIProxyMounter)
+	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*CSIProxyMounter)
 	if !ok {
 		return false, fmt.Errorf("failed to cast mounter to csi proxy mounter")
 	}
@@ -181,7 +184,7 @@ func (m *NodeMounter) PathExists(path string) (bool, error) {
 }
 
 func (m *NodeMounter) Resize(devicePath, deviceMountPath string) (bool, error) {
-	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*mounter.CSIProxyMounter)
+	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*CSIProxyMounter)
 	if !ok {
 		return false, fmt.Errorf("failed to cast mounter to csi proxy mounter")
 	}
@@ -190,7 +193,7 @@ func (m *NodeMounter) Resize(devicePath, deviceMountPath string) (bool, error) {
 
 // NeedResize called at NodeStage to ensure file system is the correct size
 func (m *NodeMounter) NeedResize(devicePath, deviceMountPath string) (bool, error) {
-	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*mounter.CSIProxyMounter)
+	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*CSIProxyMounter)
 	if !ok {
 		return false, fmt.Errorf("failed to cast mounter to csi proxy mounter")
 	}
@@ -213,7 +216,7 @@ func (m *NodeMounter) NeedResize(devicePath, deviceMountPath string) (bool, erro
 
 // Unmount volume from target path
 func (m *NodeMounter) Unpublish(target string) error {
-	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*mounter.CSIProxyMounter)
+	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*CSIProxyMounter)
 	if !ok {
 		return fmt.Errorf("failed to cast mounter to csi proxy mounter")
 	}
@@ -228,7 +231,7 @@ func (m *NodeMounter) Unpublish(target string) error {
 // Unmount volume from staging path
 // usually this staging path is a global directory on the node
 func (m *NodeMounter) Unstage(target string) error {
-	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*mounter.CSIProxyMounter)
+	proxyMounter, ok := m.SafeFormatAndMount.Interface.(*CSIProxyMounter)
 	if !ok {
 		return fmt.Errorf("failed to cast mounter to csi proxy mounter")
 	}
