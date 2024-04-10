@@ -31,6 +31,8 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/internal"
+	mockclient "github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/mocks"
+	mockmounter "github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/mounter/mocks"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -46,8 +48,8 @@ func TestNewNodeService(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockMetadataService := metadata.NewMockMetadataService(ctrl)
-	mockMounter := NewMockMounter(ctrl)
-	mockKubernetesClient := NewMockKubernetesClient(ctrl)
+	mockMounter := mockmounter.NewMockMounter(ctrl)
+	mockKubernetesClient := mockclient.NewMockKubernetesClient(ctrl)
 
 	os.Setenv("AWS_REGION", "us-west-2")
 	defer os.Unsetenv("AWS_REGION")
@@ -81,7 +83,7 @@ func TestNodeStageVolume(t *testing.T) {
 	testCases := []struct {
 		name         string
 		req          *csi.NodeStageVolumeRequest
-		mounterMock  func(ctrl *gomock.Controller) *MockMounter
+		mounterMock  func(ctrl *gomock.Controller) *mockmounter.MockMounter
 		metadataMock func(ctrl *gomock.Controller) *metadata.MockMetadataService
 		expectedErr  error
 		inflight     bool
@@ -103,8 +105,8 @@ func TestNodeStageVolume(t *testing.T) {
 				},
 				PublishContext: map[string]string{DevicePathKey: "/dev/xvdba"},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
 				m.EXPECT().PathExists(gomock.Any()).Return(true, nil)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Any()).Return("", 1, nil)
@@ -259,8 +261,8 @@ func TestNodeStageVolume(t *testing.T) {
 				},
 				PublishContext: map[string]string{DevicePathKey: "/dev/xvdba"},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
 				m.EXPECT().PathExists(gomock.Any()).Return(false, nil)
 				m.EXPECT().MakeDir(gomock.Any()).Return(nil)
@@ -318,8 +320,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				return m
 			},
 			metadataMock: func(ctrl *gomock.Controller) *metadata.MockMetadataService {
@@ -349,8 +351,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				return m
 			},
 			metadataMock: func(ctrl *gomock.Controller) *metadata.MockMetadataService {
@@ -380,8 +382,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				return m
 			},
 			metadataMock: func(ctrl *gomock.Controller) *metadata.MockMetadataService {
@@ -411,8 +413,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				return m
 			},
 			metadataMock: func(ctrl *gomock.Controller) *metadata.MockMetadataService {
@@ -442,8 +444,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				return m
 			},
 			metadataMock: func(ctrl *gomock.Controller) *metadata.MockMetadataService {
@@ -473,8 +475,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				return m
 			},
 			metadataMock: func(ctrl *gomock.Controller) *metadata.MockMetadataService {
@@ -502,8 +504,8 @@ func TestNodeStageVolume(t *testing.T) {
 				},
 				PublishContext: map[string]string{},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				return m
 			},
 			metadataMock: func(ctrl *gomock.Controller) *metadata.MockMetadataService {
@@ -530,8 +532,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				return m
 			},
 			metadataMock: func(ctrl *gomock.Controller) *metadata.MockMetadataService {
@@ -562,8 +564,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), "1", gomock.Any()).Return("/dev/xvdba1", nil)
 				m.EXPECT().PathExists(gomock.Any()).Return(true, nil)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Any()).Return("", 1, nil)
@@ -600,8 +602,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), "", gomock.Any()).Return("/dev/xvdba", nil)
 				m.EXPECT().PathExists(gomock.Any()).Return(true, nil)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Any()).Return("", 1, nil)
@@ -635,8 +637,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().FindDevicePath(gomock.Eq("/dev/xvdba"), gomock.Eq("vol-test"), gomock.Eq(""), gomock.Eq("us-west-2")).Return("", errors.New("find device path error"))
 				return m
 			},
@@ -666,8 +668,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
 				m.EXPECT().PathExists(gomock.Eq("/staging/path")).Return(false, errors.New("path exists error"))
 				return m
@@ -698,8 +700,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
 				m.EXPECT().PathExists(gomock.Eq("/staging/path")).Return(false, nil)
 				m.EXPECT().MakeDir(gomock.Eq("/staging/path")).Return(errors.New("make dir error"))
@@ -731,8 +733,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
 				m.EXPECT().PathExists(gomock.Eq("/staging/path")).Return(true, nil)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Eq("/staging/path")).Return("", 0, errors.New("get device name error"))
@@ -764,8 +766,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
 				m.EXPECT().PathExists(gomock.Eq("/staging/path")).Return(true, nil)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Eq("/staging/path")).Return("/dev/xvdba", 1, nil)
@@ -797,8 +799,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
 				m.EXPECT().PathExists(gomock.Eq("/staging/path")).Return(true, nil)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Eq("/staging/path")).Return("", 1, nil)
@@ -831,8 +833,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
 				m.EXPECT().PathExists(gomock.Any()).Return(true, nil)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Any()).Return("", 1, nil)
@@ -866,8 +868,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
 				m.EXPECT().PathExists(gomock.Any()).Return(true, nil)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Any()).Return("", 1, nil)
@@ -910,8 +912,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
 				m.EXPECT().PathExists(gomock.Eq("/staging/path")).Return(true, nil)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Eq("/staging/path")).Return("", 1, nil)
@@ -949,8 +951,8 @@ func TestNodeStageVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
 				m.EXPECT().PathExists(gomock.Eq("/staging/path")).Return(true, nil)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Eq("/staging/path")).Return("", 1, nil)
@@ -972,7 +974,7 @@ func TestNodeStageVolume(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			var mounter *MockMounter
+			var mounter *mockmounter.MockMounter
 			if tc.mounterMock != nil {
 				mounter = tc.mounterMock(ctrl)
 			}
@@ -1189,7 +1191,7 @@ func TestGetVolumesLimit(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			var mounter *MockMounter
+			var mounter *mockmounter.MockMounter
 
 			var metadata *metadata.MockMetadataService
 			if tc.metadataMock != nil {
@@ -1215,7 +1217,7 @@ func TestNodePublishVolume(t *testing.T) {
 	testCases := []struct {
 		name         string
 		req          *csi.NodePublishVolumeRequest
-		mounterMock  func(ctrl *gomock.Controller) *MockMounter
+		mounterMock  func(ctrl *gomock.Controller) *mockmounter.MockMounter
 		metadataMock func(ctrl *gomock.Controller) *metadata.MockMetadataService
 		expectedErr  error
 		inflight     bool
@@ -1238,8 +1240,8 @@ func TestNodePublishVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
 				m.EXPECT().PathExists(gomock.Any()).Return(true, nil)
@@ -1272,8 +1274,8 @@ func TestNodePublishVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().PreparePublishTarget(gomock.Any()).Return(nil)
 				m.EXPECT().IsLikelyNotMountPoint(gomock.Any()).Return(true, nil)
 				m.EXPECT().Mount(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
@@ -1409,8 +1411,8 @@ func TestNodePublishVolume(t *testing.T) {
 				},
 				Readonly: true,
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
 				m.EXPECT().PathExists(gomock.Any()).Return(true, nil)
@@ -1486,8 +1488,8 @@ func TestNodePublishVolume(t *testing.T) {
 					VolumeAttributePartition: "0",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
 				m.EXPECT().PathExists(gomock.Any()).Return(true, nil)
@@ -1523,8 +1525,8 @@ func TestNodePublishVolume(t *testing.T) {
 					VolumeAttributePartition: "1",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
 				m.EXPECT().PathExists(gomock.Any()).Return(true, nil)
@@ -1557,8 +1559,8 @@ func TestNodePublishVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("", errors.New("device path error"))
 				return m
@@ -1588,8 +1590,8 @@ func TestNodePublishVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
 				m.EXPECT().PathExists(gomock.Any()).Return(false, errors.New("path exists error"))
@@ -1620,8 +1622,8 @@ func TestNodePublishVolume(t *testing.T) {
 					DevicePathKey: "/dev/xvdba",
 				},
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 
 				m.EXPECT().FindDevicePath(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("/dev/xvdba", nil)
 				m.EXPECT().PathExists(gomock.Any()).Return(false, nil)
@@ -1641,7 +1643,7 @@ func TestNodePublishVolume(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			var mounter *MockMounter
+			var mounter *mockmounter.MockMounter
 			if tc.mounterMock != nil {
 				mounter = tc.mounterMock(ctrl)
 			}
@@ -1673,7 +1675,7 @@ func TestNodeUnstageVolume(t *testing.T) {
 	testCases := []struct {
 		name        string
 		req         *csi.NodeUnstageVolumeRequest
-		mounterMock func(ctrl *gomock.Controller) *MockMounter
+		mounterMock func(ctrl *gomock.Controller) *mockmounter.MockMounter
 		expectedErr error
 		inflight    bool
 	}{
@@ -1683,8 +1685,8 @@ func TestNodeUnstageVolume(t *testing.T) {
 				VolumeId:          "vol-test",
 				StagingTargetPath: "/staging/path",
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Any()).Return("dev-test", 1, nil)
 				m.EXPECT().Unstage(gomock.Any()).Return(nil)
 				return m
@@ -1710,8 +1712,8 @@ func TestNodeUnstageVolume(t *testing.T) {
 				VolumeId:          "vol-test",
 				StagingTargetPath: "/staging/path",
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Any()).Return("", 1, nil)
 				m.EXPECT().Unstage(gomock.Any()).Return(errors.New("unstage failed"))
 				return m
@@ -1724,8 +1726,8 @@ func TestNodeUnstageVolume(t *testing.T) {
 				VolumeId:          "vol-test",
 				StagingTargetPath: "/staging/path",
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Any()).Return("", 0, nil)
 				return m
 			},
@@ -1736,8 +1738,8 @@ func TestNodeUnstageVolume(t *testing.T) {
 				VolumeId:          "vol-test",
 				StagingTargetPath: "/staging/path",
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Any()).Return("", 0, errors.New("failed to get device name"))
 				return m
 			},
@@ -1749,8 +1751,8 @@ func TestNodeUnstageVolume(t *testing.T) {
 				VolumeId:          "vol-test",
 				StagingTargetPath: "/staging/path",
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Any()).Return("dev-test", 2, nil)
 				m.EXPECT().Unstage(gomock.Any()).Return(nil)
 				return m
@@ -1772,7 +1774,7 @@ func TestNodeUnstageVolume(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			var mounter *MockMounter
+			var mounter *mockmounter.MockMounter
 			if tc.mounterMock != nil {
 				mounter = tc.mounterMock(ctrl)
 			}
@@ -1902,7 +1904,7 @@ func TestNodeGetInfo(t *testing.T) {
 			defer ctrl.Finish()
 
 			metadataService := tc.metadataMock(ctrl)
-			mounter := NewMockMounter(ctrl)
+			mounter := mockmounter.NewMockMounter(ctrl)
 
 			driver := &NodeService{
 				metadata: metadataService,
@@ -1927,7 +1929,7 @@ func TestNodeUnpublishVolume(t *testing.T) {
 	testCases := []struct {
 		name        string
 		req         *csi.NodeUnpublishVolumeRequest
-		mounterMock func(ctrl *gomock.Controller) *MockMounter
+		mounterMock func(ctrl *gomock.Controller) *mockmounter.MockMounter
 		expectedErr error
 		inflight    bool
 	}{
@@ -1937,8 +1939,8 @@ func TestNodeUnpublishVolume(t *testing.T) {
 				VolumeId:   "vol-test",
 				TargetPath: "/target/path",
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().Unpublish(gomock.Eq("/target/path")).Return(nil)
 				return m
 			},
@@ -1963,8 +1965,8 @@ func TestNodeUnpublishVolume(t *testing.T) {
 				VolumeId:   "vol-test",
 				TargetPath: "/target/path",
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().Unpublish(gomock.Eq("/target/path")).Return(errors.New("unpublish failed"))
 				return m
 			},
@@ -1986,7 +1988,7 @@ func TestNodeUnpublishVolume(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			var mounter *MockMounter
+			var mounter *mockmounter.MockMounter
 			if tc.mounterMock != nil {
 				mounter = tc.mounterMock(ctrl)
 			}
@@ -2012,7 +2014,7 @@ func TestNodeExpandVolume(t *testing.T) {
 	testCases := []struct {
 		name         string
 		req          *csi.NodeExpandVolumeRequest
-		mounterMock  func(ctrl *gomock.Controller) *MockMounter
+		mounterMock  func(ctrl *gomock.Controller) *mockmounter.MockMounter
 		metadataMock func(ctrl *gomock.Controller) *metadata.MockMetadataService
 		expectedResp *csi.NodeExpandVolumeResponse
 		expectedErr  error
@@ -2023,8 +2025,8 @@ func TestNodeExpandVolume(t *testing.T) {
 				VolumeId:   "vol-test",
 				VolumePath: "/volume/path",
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().IsBlockDevice(gomock.Eq("/volume/path")).Return(false, nil)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Eq("/volume/path")).Return("device-name", 1, nil)
 				m.EXPECT().FindDevicePath(gomock.Eq("device-name"), gomock.Eq("vol-test"), gomock.Eq(""), gomock.Eq("us-west-2")).Return("/dev/xvdba", nil)
@@ -2091,8 +2093,8 @@ func TestNodeExpandVolume(t *testing.T) {
 				VolumeId:   "vol-test",
 				VolumePath: "/volume/path",
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().IsBlockDevice(gomock.Eq("/volume/path")).Return(false, errors.New("failed to determine if block device"))
 				return m
 			},
@@ -2104,8 +2106,8 @@ func TestNodeExpandVolume(t *testing.T) {
 				VolumeId:   "vol-test",
 				VolumePath: "/volume/path",
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().IsBlockDevice(gomock.Eq("/volume/path")).Return(true, nil)
 				m.EXPECT().GetBlockSizeBytes(gomock.Eq("/volume/path")).Return(int64(0), errors.New("failed to get block size"))
 				return m
@@ -2118,8 +2120,8 @@ func TestNodeExpandVolume(t *testing.T) {
 				VolumeId:   "vol-test",
 				VolumePath: "/volume/path",
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().IsBlockDevice(gomock.Eq("/volume/path")).Return(true, nil)
 				m.EXPECT().GetBlockSizeBytes(gomock.Eq("/volume/path")).Return(int64(1000), nil)
 				return m
@@ -2132,8 +2134,8 @@ func TestNodeExpandVolume(t *testing.T) {
 				VolumeId:   "vol-test",
 				VolumePath: "/volume/path",
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().IsBlockDevice(gomock.Eq("/volume/path")).Return(false, nil)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Eq("/volume/path")).Return("", 0, errors.New("failed to get device name"))
 				return m
@@ -2148,8 +2150,8 @@ func TestNodeExpandVolume(t *testing.T) {
 				VolumeId:   "vol-test",
 				VolumePath: "/volume/path",
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().IsBlockDevice(gomock.Eq("/volume/path")).Return(false, nil)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Eq("/volume/path")).Return("device-name", 1, nil)
 				m.EXPECT().FindDevicePath(gomock.Eq("device-name"), gomock.Eq("vol-test"), gomock.Eq(""), gomock.Eq("us-west-2")).Return("", errors.New("failed to find device path"))
@@ -2169,8 +2171,8 @@ func TestNodeExpandVolume(t *testing.T) {
 				VolumeId:   "vol-test",
 				VolumePath: "/volume/path",
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().IsBlockDevice(gomock.Eq("/volume/path")).Return(false, nil)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Eq("/volume/path")).Return("device-name", 1, nil)
 				m.EXPECT().FindDevicePath(gomock.Eq("device-name"), gomock.Eq("vol-test"), gomock.Eq(""), gomock.Eq("us-west-2")).Return("/dev/xvdba", nil)
@@ -2191,8 +2193,8 @@ func TestNodeExpandVolume(t *testing.T) {
 				VolumeId:   "vol-test",
 				VolumePath: "/volume/path",
 			},
-			mounterMock: func(ctrl *gomock.Controller) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().IsBlockDevice(gomock.Eq("/volume/path")).Return(false, nil)
 				m.EXPECT().GetDeviceNameFromMount(gomock.Eq("/volume/path")).Return("device-name", 1, nil)
 				m.EXPECT().FindDevicePath(gomock.Eq("device-name"), gomock.Eq("vol-test"), gomock.Eq(""), gomock.Eq("us-west-2")).Return("/dev/xvdba", nil)
@@ -2215,7 +2217,7 @@ func TestNodeExpandVolume(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			var mounter *MockMounter
+			var mounter *mockmounter.MockMounter
 			if tc.mounterMock != nil {
 				mounter = tc.mounterMock(ctrl)
 			}
@@ -2248,15 +2250,15 @@ func TestNodeGetVolumeStats(t *testing.T) {
 		validVolId     bool
 		validPath      bool
 		metricsStatErr bool
-		mounterMock    func(mockCtl *gomock.Controller, dir string) *MockMounter
+		mounterMock    func(mockCtl *gomock.Controller, dir string) *mockmounter.MockMounter
 		expectedErr    func(dir string) error
 	}{
 		{
 			name:       "success normal",
 			validVolId: true,
 			validPath:  true,
-			mounterMock: func(ctrl *gomock.Controller, dir string) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller, dir string) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().PathExists(dir).Return(true, nil)
 				m.EXPECT().IsBlockDevice(gomock.Eq(dir)).Return(false, nil)
 				return m
@@ -2284,8 +2286,8 @@ func TestNodeGetVolumeStats(t *testing.T) {
 			name:       "path_exists_error",
 			validVolId: true,
 			validPath:  true,
-			mounterMock: func(ctrl *gomock.Controller, dir string) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller, dir string) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().PathExists(dir).Return(false, errors.New("path exists error"))
 				return m
 			},
@@ -2297,8 +2299,8 @@ func TestNodeGetVolumeStats(t *testing.T) {
 			name:       "path_does_not_exist",
 			validVolId: true,
 			validPath:  true,
-			mounterMock: func(ctrl *gomock.Controller, dir string) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller, dir string) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().PathExists(dir).Return(false, nil)
 				return m
 			},
@@ -2310,8 +2312,8 @@ func TestNodeGetVolumeStats(t *testing.T) {
 			name:       "is_block_device_error",
 			validVolId: true,
 			validPath:  true,
-			mounterMock: func(ctrl *gomock.Controller, dir string) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller, dir string) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().PathExists(dir).Return(true, nil)
 				m.EXPECT().IsBlockDevice(gomock.Eq(dir)).Return(false, errors.New("is block device error"))
 				return m
@@ -2324,8 +2326,8 @@ func TestNodeGetVolumeStats(t *testing.T) {
 			name:       "get_block_size_bytes_error",
 			validVolId: true,
 			validPath:  true,
-			mounterMock: func(ctrl *gomock.Controller, dir string) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller, dir string) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().PathExists(dir).Return(true, nil)
 				m.EXPECT().IsBlockDevice(gomock.Eq(dir)).Return(true, nil)
 				m.EXPECT().GetBlockSizeBytes(dir).Return(int64(0), errors.New("get block size bytes error"))
@@ -2339,8 +2341,8 @@ func TestNodeGetVolumeStats(t *testing.T) {
 			name:       "success block device",
 			validVolId: true,
 			validPath:  true,
-			mounterMock: func(ctrl *gomock.Controller, dir string) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller, dir string) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().PathExists(dir).Return(true, nil)
 				m.EXPECT().IsBlockDevice(gomock.Eq(dir)).Return(true, nil)
 				m.EXPECT().GetBlockSizeBytes(dir).Return(int64(1024), nil)
@@ -2354,8 +2356,8 @@ func TestNodeGetVolumeStats(t *testing.T) {
 			name:       "metrics_stat_error",
 			validVolId: true,
 			validPath:  true,
-			mounterMock: func(ctrl *gomock.Controller, dir string) *MockMounter {
-				m := NewMockMounter(ctrl)
+			mounterMock: func(ctrl *gomock.Controller, dir string) *mockmounter.MockMounter {
+				m := mockmounter.NewMockMounter(ctrl)
 				m.EXPECT().PathExists(gomock.Any()).Return(true, nil)
 				m.EXPECT().IsBlockDevice(gomock.Any()).Return(false, nil)
 				return m
@@ -2374,7 +2376,7 @@ func TestNodeGetVolumeStats(t *testing.T) {
 
 			dir := t.TempDir()
 
-			var mounter *MockMounter
+			var mounter *mockmounter.MockMounter
 			if tc.mounterMock != nil {
 				mounter = tc.mounterMock(ctrl, dir)
 			}
@@ -2430,10 +2432,10 @@ func TestRemoveNotReadyTaint(t *testing.T) {
 				t.Setenv("CSI_NODE_NAME", nodeName)
 				getNodeMock, _ := getNodeMock(mockCtl, nodeName, &corev1.Node{}, nil)
 
-				storageV1Mock := NewMockStorageV1Interface(mockCtl)
-				getNodeMock.(*MockKubernetesClient).EXPECT().StorageV1().Return(storageV1Mock).AnyTimes()
+				storageV1Mock := mockclient.NewMockStorageV1Interface(mockCtl)
+				getNodeMock.(*mockclient.MockKubernetesClient).EXPECT().StorageV1().Return(storageV1Mock).AnyTimes()
 
-				csiNodesMock := NewMockCSINodeInterface(mockCtl)
+				csiNodesMock := mockclient.NewMockCSINodeInterface(mockCtl)
 				storageV1Mock.EXPECT().CSINodes().Return(csiNodesMock).Times(1)
 
 				count := int32(1)
@@ -2483,10 +2485,10 @@ func TestRemoveNotReadyTaint(t *testing.T) {
 					},
 				}, nil)
 
-				storageV1Mock := NewMockStorageV1Interface(mockCtl)
-				getNodeMock.(*MockKubernetesClient).EXPECT().StorageV1().Return(storageV1Mock).AnyTimes()
+				storageV1Mock := mockclient.NewMockStorageV1Interface(mockCtl)
+				getNodeMock.(*mockclient.MockKubernetesClient).EXPECT().StorageV1().Return(storageV1Mock).AnyTimes()
 
-				csiNodesMock := NewMockCSINodeInterface(mockCtl)
+				csiNodesMock := mockclient.NewMockCSINodeInterface(mockCtl)
 				storageV1Mock.EXPECT().CSINodes().Return(csiNodesMock).Times(1)
 
 				count := int32(1)
@@ -2541,10 +2543,10 @@ func TestRemoveNotReadyTaint(t *testing.T) {
 					},
 				}, nil)
 
-				storageV1Mock := NewMockStorageV1Interface(mockCtl)
-				getNodeMock.(*MockKubernetesClient).EXPECT().StorageV1().Return(storageV1Mock).AnyTimes()
+				storageV1Mock := mockclient.NewMockStorageV1Interface(mockCtl)
+				getNodeMock.(*mockclient.MockKubernetesClient).EXPECT().StorageV1().Return(storageV1Mock).AnyTimes()
 
-				csiNodesMock := NewMockCSINodeInterface(mockCtl)
+				csiNodesMock := mockclient.NewMockCSINodeInterface(mockCtl)
 				storageV1Mock.EXPECT().CSINodes().Return(csiNodesMock).Times(1)
 
 				count := int32(1)
@@ -2599,10 +2601,10 @@ func TestRemoveNotReadyTaint(t *testing.T) {
 					},
 				}, nil)
 
-				storageV1Mock := NewMockStorageV1Interface(mockCtl)
-				getNodeMock.(*MockKubernetesClient).EXPECT().StorageV1().Return(storageV1Mock).AnyTimes()
+				storageV1Mock := mockclient.NewMockStorageV1Interface(mockCtl)
+				getNodeMock.(*mockclient.MockKubernetesClient).EXPECT().StorageV1().Return(storageV1Mock).AnyTimes()
 
-				csiNodesMock := NewMockCSINodeInterface(mockCtl)
+				csiNodesMock := mockclient.NewMockCSINodeInterface(mockCtl)
 				storageV1Mock.EXPECT().CSINodes().Return(csiNodesMock).Times(1)
 
 				csiNodesMock.EXPECT().
@@ -2634,10 +2636,10 @@ func TestRemoveNotReadyTaint(t *testing.T) {
 					},
 				}, nil)
 
-				storageV1Mock := NewMockStorageV1Interface(mockCtl)
-				getNodeMock.(*MockKubernetesClient).EXPECT().StorageV1().Return(storageV1Mock).AnyTimes()
+				storageV1Mock := mockclient.NewMockStorageV1Interface(mockCtl)
+				getNodeMock.(*mockclient.MockKubernetesClient).EXPECT().StorageV1().Return(storageV1Mock).AnyTimes()
 
-				csiNodesMock := NewMockCSINodeInterface(mockCtl)
+				csiNodesMock := mockclient.NewMockCSINodeInterface(mockCtl)
 				storageV1Mock.EXPECT().CSINodes().Return(csiNodesMock).Times(1)
 
 				mockCSINode := &v1.CSINode{
@@ -2683,10 +2685,10 @@ func TestRemoveNotReadyTaint(t *testing.T) {
 					},
 				}, nil)
 
-				storageV1Mock := NewMockStorageV1Interface(mockCtl)
-				getNodeMock.(*MockKubernetesClient).EXPECT().StorageV1().Return(storageV1Mock).AnyTimes()
+				storageV1Mock := mockclient.NewMockStorageV1Interface(mockCtl)
+				getNodeMock.(*mockclient.MockKubernetesClient).EXPECT().StorageV1().Return(storageV1Mock).AnyTimes()
 
-				csiNodesMock := NewMockCSINodeInterface(mockCtl)
+				csiNodesMock := mockclient.NewMockCSINodeInterface(mockCtl)
 				storageV1Mock.EXPECT().CSINodes().Return(csiNodesMock).Times(1)
 
 				mockCSINode := &v1.CSINode{
@@ -2761,10 +2763,10 @@ func TestRemoveTaintInBackground(t *testing.T) {
 	})
 }
 
-func getNodeMock(mockCtl *gomock.Controller, nodeName string, returnNode *corev1.Node, returnError error) (kubernetes.Interface, *MockNodeInterface) {
-	mockClient := NewMockKubernetesClient(mockCtl)
-	mockCoreV1 := NewMockCoreV1Interface(mockCtl)
-	mockNode := NewMockNodeInterface(mockCtl)
+func getNodeMock(mockCtl *gomock.Controller, nodeName string, returnNode *corev1.Node, returnError error) (kubernetes.Interface, *mockclient.MockNodeInterface) {
+	mockClient := mockclient.NewMockKubernetesClient(mockCtl)
+	mockCoreV1 := mockclient.NewMockCoreV1Interface(mockCtl)
+	mockNode := mockclient.NewMockNodeInterface(mockCtl)
 
 	mockClient.EXPECT().CoreV1().Return(mockCoreV1).MinTimes(1)
 	mockCoreV1.EXPECT().Nodes().Return(mockNode).MinTimes(1)
