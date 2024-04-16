@@ -31,6 +31,9 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
+      {{- if .Values.node.windowsHostProcess }}
+      hostNetwork: true
+      {{- end }}
       {{- with .Values.node.affinity }}
       affinity: {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -66,6 +69,9 @@ spec:
             {{- if .Values.node.otelTracing }}
             - --enable-otel-tracing=true
             {{- end}}
+            {{- if .Values.node.windowsHostProcess }}
+            - --windows-host-process=true
+            {{- end }}
           env:
             - name: CSI_ENDPOINT
               value: unix:/csi/csi.sock
@@ -91,12 +97,14 @@ spec:
               mountPropagation: "None"
             - name: plugin-dir
               mountPath: C:\csi
+            {{- if not .Values.node.windowsHostProcess }}
             - name: csi-proxy-disk-pipe
               mountPath: \\.\pipe\csi-proxy-disk-v1
             - name: csi-proxy-volume-pipe
               mountPath: \\.\pipe\csi-proxy-volume-v1
             - name: csi-proxy-filesystem-pipe
               mountPath: \\.\pipe\csi-proxy-filesystem-v1
+            {{- end }}
           ports:
             - name: healthz
               containerPort: 9808
@@ -114,8 +122,14 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           securityContext:
+            {{- if .Values.node.windowsHostProcess }}
+            windowsOptions:
+              hostProcess: true
+              runAsUserName: "NT AUTHORITY\\SYSTEM"
+            {{- else }}
             windowsOptions:
               runAsUserName: "ContainerAdministrator"
+            {{- end }}
           lifecycle:
             preStop:
               exec:
@@ -189,6 +203,7 @@ spec:
           hostPath:
             path: C:\var\lib\kubelet\plugins_registry
             type: Directory
+        {{- if not .Values.node.windowsHostProcess }}
         - name: csi-proxy-disk-pipe
           hostPath:
             path: \\.\pipe\csi-proxy-disk-v1
@@ -201,6 +216,7 @@ spec:
           hostPath:
             path: \\.\pipe\csi-proxy-filesystem-v1
             type: ""
+        {{- end }}
         - name: probe-dir
           {{- if .Values.node.probeDirVolume }}
           {{- toYaml .Values.node.probeDirVolume | nindent 10 }}

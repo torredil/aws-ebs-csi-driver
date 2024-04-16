@@ -157,7 +157,7 @@ func main() {
 		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
 
-	m, err := mounter.NewNodeMounter()
+	m, err := mounter.NewNodeMounter(options.WindowsHostProcess)
 	if err != nil {
 		panic(err)
 	}

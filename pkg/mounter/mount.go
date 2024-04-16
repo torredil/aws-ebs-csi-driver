@@ -51,11 +51,19 @@ type NodeMounter struct {
 }
 
 // NewNodeMounter returns a new intsance of NodeMounter.
-func NewNodeMounter() (Mounter, error) {
-	// mounter.NewSafeMounter returns a SafeFormatAndMount
-	safeMounter, err := NewSafeMounter()
+func NewNodeMounter(hostprocess bool) (Mounter, error) {
+	var safeMounter *mountutils.SafeFormatAndMount
+	var err error
+
+	if hostprocess {
+		safeMounter, err = NewSafeMounterV2()
+	} else {
+		safeMounter, err = NewSafeMounter()
+	}
+
 	if err != nil {
 		return nil, err
 	}
+
 	return &NodeMounter{safeMounter}, nil
 }

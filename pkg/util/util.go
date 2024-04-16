@@ -29,7 +29,8 @@ import (
 )
 
 const (
-	GiB = int64(1024 * 1024 * 1024)
+	GiB              = int64(1024 * 1024 * 1024)
+	DefaultBlockSize = 4096
 )
 
 var (
@@ -113,4 +114,13 @@ func IsSBE(region string) bool {
 // StringIsAlphanumeric returns true if a given string contains only English letters or numbers
 func StringIsAlphanumeric(s string) bool {
 	return isAlphanumericRegex(s)
+}
+
+// NormalizeWindowsPath normalizes a Windows path
+func NormalizeWindowsPath(path string) string {
+	normalizedPath := strings.Replace(path, "/", "\\", -1)
+	if strings.HasPrefix(normalizedPath, "\\") {
+		normalizedPath = "c:" + normalizedPath
+	}
+	return normalizedPath
 }
