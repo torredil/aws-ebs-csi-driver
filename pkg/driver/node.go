@@ -955,13 +955,18 @@ type JSONPatch struct {
 // This taint can be optionally applied by users to prevent startup race conditions such as
 // https://github.com/kubernetes/kubernetes/issues/95911
 func removeNotReadyTaint(ctx context.Context, clientset kubernetes.Interface, node *corev1.Node) error {
-	err := checkAllocatable(ctx, clientset, node.Name)
+	freshNode, err := clientset.CoreV1().Nodes().Get(ctx, node.Name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get fresh node state: %w", err)
+	}
+
+	err = checkAllocatable(ctx, clientset, freshNode.Name)
 	if err != nil {
 		return err
 	}
 
 	var taintsToKeep []corev1.Taint
-	for _, taint := range node.Spec.Taints {
+	for _, taint := range freshNode.Spec.Taints {
 		if taint.Key != AgentNotReadyNodeTaintKey {
 			taintsToKeep = append(taintsToKeep, taint)
 		} else {
@@ -969,7 +974,7 @@ func removeNotReadyTaint(ctx context.Context, clientset kubernetes.Interface, no
 		}
 	}
 
-	if len(taintsToKeep) == len(node.Spec.Taints) {
+	if len(taintsToKeep) == len(freshNode.Spec.Taints) {
 		klog.V(4).InfoS("No taints to remove on node, skipping taint removal")
 		return nil
 	}
@@ -978,7 +983,7 @@ func removeNotReadyTaint(ctx context.Context, clientset kubernetes.Interface, no
 		{
 			OP:    "test",
 			Path:  "/spec/taints",
-			Value: node.Spec.Taints,
+			Value: freshNode.Spec.Taints,
 		},
 		{
 			OP:    "replace",
@@ -992,11 +997,11 @@ func removeNotReadyTaint(ctx context.Context, clientset kubernetes.Interface, no
 		return err
 	}
 
-	_, err = clientset.CoreV1().Nodes().Patch(ctx, node.Name, k8stypes.JSONPatchType, patch, metav1.PatchOptions{})
+	_, err = clientset.CoreV1().Nodes().Patch(ctx, freshNode.Name, k8stypes.JSONPatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		return err
 	}
-	klog.InfoS("Removed taint(s) from local node", "node", node.Name)
+	klog.InfoS("Removed taint(s) from local node", "node", freshNode.Name)
 	return nil
 }
 
