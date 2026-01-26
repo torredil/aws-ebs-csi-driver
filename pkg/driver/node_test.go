@@ -21,6 +21,7 @@ package driver
 import (
 	"context"
 	"errors"
+	"maps"
 	"reflect"
 	"runtime"
 	"strings"
@@ -34,7 +35,6 @@ import (
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/internal"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
-	"github.com/samber/lo"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
@@ -2055,6 +2055,22 @@ func TestNodeGetCapabilities(t *testing.T) {
 }
 
 func TestNodeGetInfo(t *testing.T) {
+	expectedSegments := map[string]string{
+		ZoneTopologyKey:          "us-west-2a",
+		WellKnownZoneTopologyKey: "us-west-2a",
+		OSTopologyKey:            runtime.GOOS,
+	}
+	maps.Copy(expectedSegments, util.GetNodeSegments())
+	expectedSegmentsWithAWSKeys := map[string]string{
+		ZoneTopologyKey:          "us-west-2a",
+		WellKnownZoneTopologyKey: "us-west-2a",
+		OSTopologyKey:            runtime.GOOS,
+		AwsRegionKey:             "us-west-2",
+		AwsPartitionKey:          "aws",
+		AwsAccountIDKey:          "123456789012",
+		AwsOutpostIDKey:          "op-1234567890abcdef0",
+	}
+	maps.Copy(expectedSegmentsWithAWSKeys, util.GetNodeSegments())
 	testCases := []struct {
 		name         string
 		metadataMock func(ctrl *gomock.Controller) *metadata.MockMetadataService
@@ -2073,11 +2089,7 @@ func TestNodeGetInfo(t *testing.T) {
 			expectedResp: &csi.NodeGetInfoResponse{
 				NodeId: "i-1234567890abcdef0",
 				AccessibleTopology: &csi.Topology{
-					Segments: lo.Assign(map[string]string{
-						ZoneTopologyKey:          "us-west-2a",
-						WellKnownZoneTopologyKey: "us-west-2a",
-						OSTopologyKey:            runtime.GOOS,
-					}, util.GetNodeSegments()),
+					Segments: expectedSegments,
 				},
 			},
 		},
@@ -2095,11 +2107,7 @@ func TestNodeGetInfo(t *testing.T) {
 			expectedResp: &csi.NodeGetInfoResponse{
 				NodeId: "i-1234567890abcdef0",
 				AccessibleTopology: &csi.Topology{
-					Segments: lo.Assign(map[string]string{
-						ZoneTopologyKey:          "us-west-2a",
-						WellKnownZoneTopologyKey: "us-west-2a",
-						OSTopologyKey:            runtime.GOOS,
-					}, util.GetNodeSegments()),
+					Segments: expectedSegments,
 				},
 			},
 		},
@@ -2122,15 +2130,7 @@ func TestNodeGetInfo(t *testing.T) {
 			expectedResp: &csi.NodeGetInfoResponse{
 				NodeId: "i-1234567890abcdef0",
 				AccessibleTopology: &csi.Topology{
-					Segments: lo.Assign(map[string]string{
-						ZoneTopologyKey:          "us-west-2a",
-						WellKnownZoneTopologyKey: "us-west-2a",
-						OSTopologyKey:            runtime.GOOS,
-						AwsRegionKey:             "us-west-2",
-						AwsPartitionKey:          "aws",
-						AwsAccountIDKey:          "123456789012",
-						AwsOutpostIDKey:          "op-1234567890abcdef0",
-					}, util.GetNodeSegments()),
+					Segments: expectedSegmentsWithAWSKeys,
 				},
 			},
 		},

@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math/rand"
 	"reflect"
 	"strings"
@@ -36,7 +37,6 @@ import (
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/internal"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/testutil"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
-	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -172,19 +172,21 @@ func TestCreateVolume(t *testing.T) {
 						},
 					},
 				}
+				expectedSegments := map[string]string{
+					WellKnownZoneTopologyKey: expZone,
+					AwsAccountIDKey:          outpostArn.AccountID,
+					AwsOutpostIDKey:          outpostArn.Resource,
+					AwsRegionKey:             outpostArn.Region,
+					AwsPartitionKey:          outpostArn.Partition,
+				}
+				maps.Copy(expectedSegments, util.GetNodeSegments())
 				expVol := &csi.Volume{
 					CapacityBytes: stdVolSize,
 					VolumeId:      "vol-test",
 					VolumeContext: map[string]string{},
 					AccessibleTopology: []*csi.Topology{
 						{
-							Segments: lo.Assign(map[string]string{
-								WellKnownZoneTopologyKey: expZone,
-								AwsAccountIDKey:          outpostArn.AccountID,
-								AwsOutpostIDKey:          outpostArn.Resource,
-								AwsRegionKey:             outpostArn.Region,
-								AwsPartitionKey:          outpostArn.Partition,
-							}, util.GetNodeSegments()),
+							Segments: expectedSegments,
 						},
 					},
 				}
@@ -658,15 +660,17 @@ func TestCreateVolume(t *testing.T) {
 						},
 					},
 				}
+				expectedSegments := map[string]string{
+					WellKnownZoneTopologyKey: expZone,
+				}
+				maps.Copy(expectedSegments, util.GetNodeSegments())
 				expVol := &csi.Volume{
 					CapacityBytes: stdVolSize,
 					VolumeId:      "vol-test",
 					VolumeContext: map[string]string{},
 					AccessibleTopology: []*csi.Topology{
 						{
-							Segments: lo.Assign(map[string]string{
-								WellKnownZoneTopologyKey: expZone,
-							}, util.GetNodeSegments()),
+							Segments: expectedSegments,
 						},
 					},
 				}
@@ -2169,15 +2173,17 @@ func TestCreateVolume(t *testing.T) {
 						},
 					},
 				}
+				expectedSegments := map[string]string{
+					WellKnownZoneTopologyKey: expZone,
+				}
+				maps.Copy(expectedSegments, util.GetNodeSegments())
 				expVol := &csi.Volume{
 					CapacityBytes: stdVolSize,
 					VolumeId:      "vol-test",
 					VolumeContext: map[string]string{},
 					AccessibleTopology: []*csi.Topology{
 						{
-							Segments: lo.Assign(map[string]string{
-								WellKnownZoneTopologyKey: expZone,
-							}, util.GetNodeSegments()),
+							Segments: expectedSegments,
 						},
 					},
 				}

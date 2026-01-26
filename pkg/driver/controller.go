@@ -35,7 +35,6 @@ import (
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/internal"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util/template"
-	"github.com/samber/lo"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -1210,7 +1209,7 @@ func newCreateVolumeResponse(disk *cloud.Disk, ctx map[string]string) *csi.Creat
 	}
 
 	segments := map[string]string{WellKnownZoneTopologyKey: disk.AvailabilityZone}
-	lo.Assign(segments, util.GetNodeSegments())
+	maps.Copy(segments, util.GetNodeSegments())
 
 	arn, err := arn.Parse(disk.OutpostArn)
 
