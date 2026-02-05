@@ -27,6 +27,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/sagemaker"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/pflag"
@@ -54,6 +56,8 @@ func loadPlugin(pluginToLoad EbsCsiPlugin) {
 
 // EbsCsiPlugin is the common plugin interface all plugins implement.
 type EbsCsiPlugin interface {
+	cloud.AWSClientProvider
+
 	// Init is called extremely early to get CLI flags, before Init
 	// Do not use for any non-CLI initialization - do that in Init()
 	InitFlags(fs *pflag.FlagSet)
@@ -64,15 +68,18 @@ type EbsCsiPlugin interface {
 	// plugins must handle this case gracefully
 	Init(region string, registry *prometheus.Registry) error
 
-	// GetEC2Client replaces the AWS EC2 client the driver uses
-	GetEC2Client(cfg aws.Config, optFns ...func(*ec2.Options)) util.EC2API
-	// GetSageMakerClient replaces the AWS EC2 client the driver uses
-	GetSageMakerClient(cfg aws.Config, optFns ...func(*sagemaker.Options)) util.SageMakerAPI
 	// GetDriverName replaces the driver name in use (normally "ebs.csi.aws.com")
 	// This function can be called before Init and should not depend on it
 	GetDriverName() string
-	// GetSegments provides additional segments to be added as part of the driver and controllers
-	GetNodeSegments() map[string]string
+
+	// GetDiskTopologySegments provides a set of additional topology segments that should be applied to volumes created by
+	// the driver. These segments are merged with the existing topology segments applied by the base driver. Segments
+	// provided by the plugin take precedent.
+	GetDiskTopologySegments(disk *cloud.Disk) map[string]string
+	// GetNodeTopologySegments provides a set of additional topology segments that should be resolved for nodes running
+	// the driver. These segments are merged with the existing topology segments resolved by the base driver. Segments
+	// provided by the plugin take precedent.
+	GetNodeTopologySegments(metadataService metadata.MetadataService) map[string]string
 }
 
 // ebsCsiPluginBase implements stub functionality of all plugin methods except Init().
@@ -96,6 +103,10 @@ func (p *ebsCsiPluginBase) GetDriverName() string {
 	return ""
 }
 
-func (p *ebsCsiPluginBase) GetNodeSegments() map[string]string {
+func (p *ebsCsiPluginBase) GetDiskTopologySegments(_ *cloud.Disk) map[string]string {
+	return map[string]string{}
+}
+
+func (p *ebsCsiPluginBase) GetNodeTopologySegments(_ metadata.MetadataService) map[string]string {
 	return map[string]string{}
 }

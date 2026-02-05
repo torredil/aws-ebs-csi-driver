@@ -157,18 +157,12 @@ func main() {
 		// We need to do this as early as possible because some metadata sources (metadata-labeler)
 		// use the driver name, and thus we need the name to be initialized before running metadata.
 		driverName := "ebs.csi.aws.com"
-		segments := map[string]string{}
 		if plugin != nil {
 			if pluginDriverName := plugin.GetDriverName(); pluginDriverName != "" {
 				driverName = pluginDriverName
 			}
-			if pluginSegments := plugin.GetNodeSegments(); len(pluginSegments) != 0 {
-				segments = pluginSegments
-			}
 		}
 		util.SetDriverName(driverName)
-		// Set driver segments that will be propagated to resources
-		util.SetNodeSegments(segments)
 
 		if region != "" {
 			klog.InfoS("Region provided via AWS_REGION environment variable", "region", region)
@@ -198,7 +192,7 @@ func main() {
 				klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 			}
 		}
-		cloud = cloudPkg.NewCloud(region, options.AwsSdkDebugLog, options.UserAgentExtra, options.Batching, options.DeprecatedMetrics)
+		cloud = cloudPkg.NewCloud(region, options.AwsSdkDebugLog, options.UserAgentExtra, options.Batching, options.DeprecatedMetrics, plugin)
 	}
 
 	k8sClient, err = cfg.K8sAPIClient()

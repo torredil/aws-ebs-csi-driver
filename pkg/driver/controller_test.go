@@ -35,6 +35,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/internal"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/plugin"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/testutil"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -172,6 +173,12 @@ func TestCreateVolume(t *testing.T) {
 						},
 					},
 				}
+				mockDisk := &cloud.Disk{
+					VolumeID:         req.GetName(),
+					AvailabilityZone: expZone,
+					CapacityGiB:      util.BytesToGiB(stdVolSize),
+					OutpostArn:       outpostArn.String(),
+				}
 				expectedSegments := map[string]string{
 					WellKnownZoneTopologyKey: expZone,
 					AwsAccountIDKey:          outpostArn.AccountID,
@@ -179,7 +186,9 @@ func TestCreateVolume(t *testing.T) {
 					AwsRegionKey:             outpostArn.Region,
 					AwsPartitionKey:          outpostArn.Partition,
 				}
-				maps.Copy(expectedSegments, util.GetNodeSegments())
+				if p := plugin.GetPlugin(); p != nil {
+					maps.Copy(expectedSegments, p.GetDiskTopologySegments(mockDisk))
+				}
 				expVol := &csi.Volume{
 					CapacityBytes: stdVolSize,
 					VolumeId:      "vol-test",
@@ -192,13 +201,6 @@ func TestCreateVolume(t *testing.T) {
 				}
 
 				ctx := t.Context()
-
-				mockDisk := &cloud.Disk{
-					VolumeID:         req.GetName(),
-					AvailabilityZone: expZone,
-					CapacityGiB:      util.BytesToGiB(stdVolSize),
-					OutpostArn:       outpostArn.String(),
-				}
 
 				mockCtl := gomock.NewController(t)
 				defer mockCtl.Finish()
@@ -660,10 +662,18 @@ func TestCreateVolume(t *testing.T) {
 						},
 					},
 				}
+				mockDisk := &cloud.Disk{
+					VolumeID:           req.GetName(),
+					AvailabilityZone:   expZone,
+					CapacityGiB:        util.BytesToGiB(stdVolSize),
+					AvailabilityZoneID: expZoneID,
+				}
 				expectedSegments := map[string]string{
 					WellKnownZoneTopologyKey: expZone,
 				}
-				maps.Copy(expectedSegments, util.GetNodeSegments())
+				if p := plugin.GetPlugin(); p != nil {
+					maps.Copy(expectedSegments, p.GetDiskTopologySegments(mockDisk))
+				}
 				expVol := &csi.Volume{
 					CapacityBytes: stdVolSize,
 					VolumeId:      "vol-test",
@@ -676,13 +686,6 @@ func TestCreateVolume(t *testing.T) {
 				}
 
 				ctx := t.Context()
-
-				mockDisk := &cloud.Disk{
-					VolumeID:           req.GetName(),
-					AvailabilityZone:   expZone,
-					CapacityGiB:        util.BytesToGiB(stdVolSize),
-					AvailabilityZoneID: expZoneID,
-				}
 
 				mockCtl := gomock.NewController(t)
 				defer mockCtl.Finish()
@@ -2173,10 +2176,17 @@ func TestCreateVolume(t *testing.T) {
 						},
 					},
 				}
+				mockDisk := &cloud.Disk{
+					VolumeID:         req.GetName(),
+					AvailabilityZone: expZone,
+					CapacityGiB:      util.BytesToGiB(stdVolSize),
+				}
 				expectedSegments := map[string]string{
 					WellKnownZoneTopologyKey: expZone,
 				}
-				maps.Copy(expectedSegments, util.GetNodeSegments())
+				if p := plugin.GetPlugin(); p != nil {
+					maps.Copy(expectedSegments, p.GetDiskTopologySegments(mockDisk))
+				}
 				expVol := &csi.Volume{
 					CapacityBytes: stdVolSize,
 					VolumeId:      "vol-test",
@@ -2189,12 +2199,6 @@ func TestCreateVolume(t *testing.T) {
 				}
 
 				ctx := t.Context()
-
-				mockDisk := &cloud.Disk{
-					VolumeID:         req.GetName(),
-					AvailabilityZone: expZone,
-					CapacityGiB:      util.BytesToGiB(stdVolSize),
-				}
 
 				mockCtl := gomock.NewController(t)
 				defer mockCtl.Finish()

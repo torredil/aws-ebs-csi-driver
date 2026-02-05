@@ -34,6 +34,7 @@ import (
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/internal"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/plugin"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -2060,7 +2061,6 @@ func TestNodeGetInfo(t *testing.T) {
 		WellKnownZoneTopologyKey: "us-west-2a",
 		OSTopologyKey:            runtime.GOOS,
 	}
-	maps.Copy(expectedSegments, util.GetNodeSegments())
 	expectedSegmentsWithAWSKeys := map[string]string{
 		ZoneTopologyKey:          "us-west-2a",
 		WellKnownZoneTopologyKey: "us-west-2a",
@@ -2070,7 +2070,6 @@ func TestNodeGetInfo(t *testing.T) {
 		AwsAccountIDKey:          "123456789012",
 		AwsOutpostIDKey:          "op-1234567890abcdef0",
 	}
-	maps.Copy(expectedSegmentsWithAWSKeys, util.GetNodeSegments())
 	testCases := []struct {
 		name         string
 		metadataMock func(ctrl *gomock.Controller) *metadata.MockMetadataService
@@ -2080,10 +2079,16 @@ func TestNodeGetInfo(t *testing.T) {
 			name: "without_outpost_arn",
 			metadataMock: func(ctrl *gomock.Controller) *metadata.MockMetadataService {
 				m := metadata.NewMockMetadataService(ctrl)
-				m.EXPECT().GetInstanceID().Return("i-1234567890abcdef0")
-				m.EXPECT().GetAvailabilityZone().Return("us-west-2a")
-				m.EXPECT().UpdateMetadata().Return(nil)
-				m.EXPECT().GetOutpostArn().Return(arn.ARN{})
+				m.EXPECT().GetInstanceID().Return("i-1234567890abcdef0").MinTimes(1)
+				m.EXPECT().GetAvailabilityZone().Return("us-west-2a").MinTimes(1)
+				m.EXPECT().UpdateMetadata().Return(nil).MinTimes(1)
+				m.EXPECT().GetOutpostArn().Return(arn.ARN{}).MinTimes(1)
+
+				// These won't be invoked by the base driver, but may be invoked by the plugin
+				m.EXPECT().GetRegion().Return("us-west-2").AnyTimes()
+				m.EXPECT().GetInstanceType().Return("c5.large").AnyTimes()
+				m.EXPECT().GetNumAttachedENIs().Return(1).AnyTimes()
+				m.EXPECT().GetNumBlockDeviceMappings().Return(2).AnyTimes()
 				return m
 			},
 			expectedResp: &csi.NodeGetInfoResponse{
@@ -2098,10 +2103,16 @@ func TestNodeGetInfo(t *testing.T) {
 			metadataMock: func(ctrl *gomock.Controller) *metadata.MockMetadataService {
 				m := metadata.NewMockMetadataService(ctrl)
 				// When UpdateMedata returns an error, NodeGetInfo should continue execution.
-				m.EXPECT().UpdateMetadata().Return(errors.New("metadata update failed"))
-				m.EXPECT().GetInstanceID().Return("i-1234567890abcdef0")
-				m.EXPECT().GetAvailabilityZone().Return("us-west-2a")
-				m.EXPECT().GetOutpostArn().Return(arn.ARN{})
+				m.EXPECT().UpdateMetadata().Return(errors.New("metadata update failed")).MinTimes(1)
+				m.EXPECT().GetInstanceID().Return("i-1234567890abcdef0").MinTimes(1)
+				m.EXPECT().GetAvailabilityZone().Return("us-west-2a").MinTimes(1)
+				m.EXPECT().GetOutpostArn().Return(arn.ARN{}).MinTimes(1)
+
+				// These won't be invoked by the base driver, but may be invoked by the plugin
+				m.EXPECT().GetRegion().Return("us-west-2").AnyTimes()
+				m.EXPECT().GetInstanceType().Return("c5.large").AnyTimes()
+				m.EXPECT().GetNumAttachedENIs().Return(1).AnyTimes()
+				m.EXPECT().GetNumBlockDeviceMappings().Return(2).AnyTimes()
 				return m
 			},
 			expectedResp: &csi.NodeGetInfoResponse{
@@ -2115,16 +2126,22 @@ func TestNodeGetInfo(t *testing.T) {
 			name: "with_outpost_arn",
 			metadataMock: func(ctrl *gomock.Controller) *metadata.MockMetadataService {
 				m := metadata.NewMockMetadataService(ctrl)
-				m.EXPECT().GetInstanceID().Return("i-1234567890abcdef0")
-				m.EXPECT().GetAvailabilityZone().Return("us-west-2a")
-				m.EXPECT().UpdateMetadata().Return(nil)
+				m.EXPECT().GetInstanceID().Return("i-1234567890abcdef0").MinTimes(1)
+				m.EXPECT().GetAvailabilityZone().Return("us-west-2a").MinTimes(1)
+				m.EXPECT().UpdateMetadata().Return(nil).MinTimes(1)
 				m.EXPECT().GetOutpostArn().Return(arn.ARN{
 					Partition: "aws",
 					Service:   "outposts",
 					Region:    "us-west-2",
 					AccountID: "123456789012",
 					Resource:  "op-1234567890abcdef0",
-				})
+				}).MinTimes(1)
+
+				// These won't be invoked by the base driver, but may be invoked by the plugin
+				m.EXPECT().GetRegion().Return("us-west-2").AnyTimes()
+				m.EXPECT().GetInstanceType().Return("c5.large").AnyTimes()
+				m.EXPECT().GetNumAttachedENIs().Return(1).AnyTimes()
+				m.EXPECT().GetNumBlockDeviceMappings().Return(2).AnyTimes()
 				return m
 			},
 			expectedResp: &csi.NodeGetInfoResponse{
@@ -2156,6 +2173,11 @@ func TestNodeGetInfo(t *testing.T) {
 				t.Fatalf("Unexpected error: %v", err)
 			}
 
+			if p := plugin.GetPlugin(); p != nil {
+				if segments := tc.expectedResp.GetAccessibleTopology().GetSegments(); segments != nil {
+					maps.Copy(segments, p.GetNodeTopologySegments(metadataService))
+				}
+			}
 			if !reflect.DeepEqual(resp, tc.expectedResp) {
 				t.Fatalf("Expected response %+v, but got %+v", tc.expectedResp, resp)
 			}
