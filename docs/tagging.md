@@ -29,7 +29,7 @@ parameters:
   tagSpecification_3: "key3="
 ```
 
-Provisioning a volume using this StorageClass will apply two tags:
+Provisioning a volume using this StorageClass will apply three tags:
 
 ```
 key1=value1
