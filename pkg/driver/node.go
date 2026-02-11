@@ -629,7 +629,7 @@ func (d *NodeService) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	}
 
 	if p := plugin.GetPlugin(); p != nil {
-		maps.Copy(segments, p.GetNodeTopologySegments(d.metadata))
+		maps.Copy(segments, p.GetNodeTopologySegments())
 	}
 
 	topology := &csi.Topology{Segments: segments}

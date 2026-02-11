@@ -122,7 +122,7 @@ func TestNewCloud(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		ec2Cloud := NewCloud(tc.region, tc.awsSdkDebugLog, tc.userAgentExtra, tc.batchingEnabled, tc.deprecatedMetrics, nil)
+		ec2Cloud := NewCloud(tc.region, tc.awsSdkDebugLog, tc.userAgentExtra, tc.batchingEnabled, tc.deprecatedMetrics)
 		ec2CloudAscloud, ok := ec2Cloud.(*cloud)
 		if !ok {
 			t.Fatalf("could not assert object ec2Cloud as cloud type, %v", ec2Cloud)

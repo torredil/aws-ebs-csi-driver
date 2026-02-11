@@ -22,7 +22,6 @@ import (
 
 	awscloud "github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
 	ebscsidriver "github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver"
-	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/plugin"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/tests/e2e/driver"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/tests/e2e/testsuites"
 	. "github.com/onsi/ginkgo/v2"
@@ -622,7 +621,7 @@ var _ = Describe("[ebs-csi-e2e] [single-az] Dynamic Provisioning", func() {
 		availabilityZones := strings.Split(os.Getenv(awsAvailabilityZonesEnv), ",")
 		availabilityZone := availabilityZones[rand.Intn(len(availabilityZones))]
 		region := availabilityZone[0 : len(availabilityZone)-1]
-		cloud := awscloud.NewCloud(region, false, "", true, false, plugin.GetPlugin())
+		cloud := awscloud.NewCloud(region, false, "", true, false)
 
 		test := testsuites.DynamicallyProvisionedReclaimPolicyTest{
 			CSIDriver: ebsDriver,

@@ -192,7 +192,7 @@ func main() {
 				klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 			}
 		}
-		cloud = cloudPkg.NewCloud(region, options.AwsSdkDebugLog, options.UserAgentExtra, options.Batching, options.DeprecatedMetrics, plugin)
+		cloud = cloudPkg.NewCloud(region, options.AwsSdkDebugLog, options.UserAgentExtra, options.Batching, options.DeprecatedMetrics)
 	}
 
 	k8sClient, err = cfg.K8sAPIClient()

@@ -1218,7 +1218,7 @@ func newCreateVolumeResponse(disk *cloud.Disk, ctx map[string]string) *csi.Creat
 		segments[AwsOutpostIDKey] = strings.ReplaceAll(arn.Resource, "outpost/", "")
 	}
 	if p := plugin.GetPlugin(); p != nil {
-		maps.Copy(segments, p.GetDiskTopologySegments(disk))
+		maps.Copy(segments, p.GetDiskTopologySegments())
 	}
 
 	return &csi.CreateVolumeResponse{

@@ -42,6 +42,7 @@ import (
 	dm "github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud/devicemanager"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/expiringcache"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/metrics"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/plugin"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
@@ -415,13 +416,6 @@ type cloud struct {
 
 var _ Cloud = &cloud{}
 
-type AWSClientProvider interface {
-	// GetEC2Client replaces the AWS EC2 client the driver uses
-	GetEC2Client(cfg aws.Config, optFns ...func(*ec2.Options)) util.EC2API
-	// GetSageMakerClient replaces the AWS EC2 client the driver uses
-	GetSageMakerClient(cfg aws.Config, optFns ...func(*sagemaker.Options)) util.SageMakerAPI
-}
-
 // initVariables initializes variables that depend on driver name.
 // Separated into a separate function from NewCloud so it can be called in tests.
 func initVariables() {
@@ -432,7 +426,7 @@ func initVariables() {
 
 // NewCloud returns a new instance of AWS cloud
 // It panics if session is invalid.
-func NewCloud(region string, awsSdkDebugLog bool, userAgentExtra string, batchingEnabled bool, deprecatedMetrics bool, awsClientProvider AWSClientProvider) Cloud {
+func NewCloud(region string, awsSdkDebugLog bool, userAgentExtra string, batchingEnabled bool, deprecatedMetrics bool) Cloud {
 	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(region))
 	if err != nil {
 		panic(err)
@@ -476,11 +470,12 @@ func NewCloud(region string, awsSdkDebugLog bool, userAgentExtra string, batchin
 		}
 	}
 
+	p := plugin.GetPlugin()
 	var ec2Client util.EC2API
 	var smClient util.SageMakerAPI
-	if awsClientProvider != nil {
-		ec2Client = awsClientProvider.GetEC2Client(cfg, ec2Options)
-		smClient = awsClientProvider.GetSageMakerClient(cfg, smOptions)
+	if p != nil {
+		ec2Client = p.GetEC2Client(cfg, ec2Options)
+		smClient = p.GetSageMakerClient(cfg, smOptions)
 	}
 	// Default clients if plugin is not in use or does not implement client override.
 	if ec2Client == nil {

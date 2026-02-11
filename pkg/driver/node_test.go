@@ -2079,16 +2079,10 @@ func TestNodeGetInfo(t *testing.T) {
 			name: "without_outpost_arn",
 			metadataMock: func(ctrl *gomock.Controller) *metadata.MockMetadataService {
 				m := metadata.NewMockMetadataService(ctrl)
-				m.EXPECT().GetInstanceID().Return("i-1234567890abcdef0").MinTimes(1)
-				m.EXPECT().GetAvailabilityZone().Return("us-west-2a").MinTimes(1)
-				m.EXPECT().UpdateMetadata().Return(nil).MinTimes(1)
-				m.EXPECT().GetOutpostArn().Return(arn.ARN{}).MinTimes(1)
-
-				// These won't be invoked by the base driver, but may be invoked by the plugin
-				m.EXPECT().GetRegion().Return("us-west-2").AnyTimes()
-				m.EXPECT().GetInstanceType().Return("c5.large").AnyTimes()
-				m.EXPECT().GetNumAttachedENIs().Return(1).AnyTimes()
-				m.EXPECT().GetNumBlockDeviceMappings().Return(2).AnyTimes()
+				m.EXPECT().GetInstanceID().Return("i-1234567890abcdef0")
+				m.EXPECT().GetAvailabilityZone().Return("us-west-2a")
+				m.EXPECT().UpdateMetadata().Return(nil)
+				m.EXPECT().GetOutpostArn().Return(arn.ARN{})
 				return m
 			},
 			expectedResp: &csi.NodeGetInfoResponse{
@@ -2103,16 +2097,10 @@ func TestNodeGetInfo(t *testing.T) {
 			metadataMock: func(ctrl *gomock.Controller) *metadata.MockMetadataService {
 				m := metadata.NewMockMetadataService(ctrl)
 				// When UpdateMedata returns an error, NodeGetInfo should continue execution.
-				m.EXPECT().UpdateMetadata().Return(errors.New("metadata update failed")).MinTimes(1)
-				m.EXPECT().GetInstanceID().Return("i-1234567890abcdef0").MinTimes(1)
-				m.EXPECT().GetAvailabilityZone().Return("us-west-2a").MinTimes(1)
-				m.EXPECT().GetOutpostArn().Return(arn.ARN{}).MinTimes(1)
-
-				// These won't be invoked by the base driver, but may be invoked by the plugin
-				m.EXPECT().GetRegion().Return("us-west-2").AnyTimes()
-				m.EXPECT().GetInstanceType().Return("c5.large").AnyTimes()
-				m.EXPECT().GetNumAttachedENIs().Return(1).AnyTimes()
-				m.EXPECT().GetNumBlockDeviceMappings().Return(2).AnyTimes()
+				m.EXPECT().UpdateMetadata().Return(errors.New("metadata update failed"))
+				m.EXPECT().GetInstanceID().Return("i-1234567890abcdef0")
+				m.EXPECT().GetAvailabilityZone().Return("us-west-2a")
+				m.EXPECT().GetOutpostArn().Return(arn.ARN{})
 				return m
 			},
 			expectedResp: &csi.NodeGetInfoResponse{
@@ -2126,22 +2114,16 @@ func TestNodeGetInfo(t *testing.T) {
 			name: "with_outpost_arn",
 			metadataMock: func(ctrl *gomock.Controller) *metadata.MockMetadataService {
 				m := metadata.NewMockMetadataService(ctrl)
-				m.EXPECT().GetInstanceID().Return("i-1234567890abcdef0").MinTimes(1)
-				m.EXPECT().GetAvailabilityZone().Return("us-west-2a").MinTimes(1)
-				m.EXPECT().UpdateMetadata().Return(nil).MinTimes(1)
+				m.EXPECT().GetInstanceID().Return("i-1234567890abcdef0")
+				m.EXPECT().GetAvailabilityZone().Return("us-west-2a")
+				m.EXPECT().UpdateMetadata().Return(nil)
 				m.EXPECT().GetOutpostArn().Return(arn.ARN{
 					Partition: "aws",
 					Service:   "outposts",
 					Region:    "us-west-2",
 					AccountID: "123456789012",
 					Resource:  "op-1234567890abcdef0",
-				}).MinTimes(1)
-
-				// These won't be invoked by the base driver, but may be invoked by the plugin
-				m.EXPECT().GetRegion().Return("us-west-2").AnyTimes()
-				m.EXPECT().GetInstanceType().Return("c5.large").AnyTimes()
-				m.EXPECT().GetNumAttachedENIs().Return(1).AnyTimes()
-				m.EXPECT().GetNumBlockDeviceMappings().Return(2).AnyTimes()
+				})
 				return m
 			},
 			expectedResp: &csi.NodeGetInfoResponse{
@@ -2175,7 +2157,7 @@ func TestNodeGetInfo(t *testing.T) {
 
 			if p := plugin.GetPlugin(); p != nil {
 				if segments := tc.expectedResp.GetAccessibleTopology().GetSegments(); segments != nil {
-					maps.Copy(segments, p.GetNodeTopologySegments(metadataService))
+					maps.Copy(segments, p.GetNodeTopologySegments())
 				}
 			}
 			if !reflect.DeepEqual(resp, tc.expectedResp) {
