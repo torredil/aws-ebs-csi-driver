@@ -147,6 +147,8 @@ sidecars:
       repository: public.ecr.aws/csi-components/csi-node-driver-registrar
       tag: "v2.15.0-eksbuild.4"
     logLevel: 2
+    # The port the health probe is bound to.
+    healthPort: 9809
     # Additional parameters provided by node-driver-registrar.
     additionalArgs: []
     resources: {}

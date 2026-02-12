@@ -195,7 +195,7 @@ spec:
           args:
             - --csi-address=$(ADDRESS)
             - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
-            - --http-endpoint=0.0.0.0:9809
+            - --http-endpoint=0.0.0.0:{{ .Values.sidecars.nodeDriverRegistrar.healthPort }}
             {{- if .Values.debugLogs }}
             - --v=7
             {{- else }}
@@ -221,7 +221,7 @@ spec:
           {{- end }}
           ports:
             - name: healthz
-              containerPort: 9809
+              containerPort: {{ .Values.sidecars.nodeDriverRegistrar.healthPort }}
           {{- with .Values.sidecars.nodeDriverRegistrar.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
