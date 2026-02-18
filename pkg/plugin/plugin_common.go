@@ -66,11 +66,21 @@ type EbsCsiPlugin interface {
 
 	// GetEC2Client replaces the AWS EC2 client the driver uses
 	GetEC2Client(cfg aws.Config, optFns ...func(*ec2.Options)) util.EC2API
-	// GetSageMakerClient replaces the AWS EC2 client the driver uses
+	// GetSageMakerClient replaces the AWS SageMaker client the driver uses
 	GetSageMakerClient(cfg aws.Config, optFns ...func(*sagemaker.Options)) util.SageMakerAPI
+
 	// GetDriverName replaces the driver name in use (normally "ebs.csi.aws.com")
 	// This function can be called before Init and should not depend on it
 	GetDriverName() string
+
+	// GetDiskTopologySegments provides a set of additional topology segments that should be applied to volumes created by
+	// the driver. These segments are merged with the existing topology segments applied by the base driver. Segments
+	// provided by the plugin take precedent.
+	GetDiskTopologySegments() map[string]string
+	// GetNodeTopologySegments provides a set of additional topology segments that should be resolved for nodes running
+	// the driver. These segments are merged with the existing topology segments resolved by the base driver. Segments
+	// provided by the plugin take precedent.
+	GetNodeTopologySegments() map[string]string
 }
 
 // ebsCsiPluginBase implements stub functionality of all plugin methods except Init().
@@ -92,4 +102,12 @@ func (p *ebsCsiPluginBase) GetSageMakerClient(_ aws.Config, _ ...func(o *sagemak
 
 func (p *ebsCsiPluginBase) GetDriverName() string {
 	return ""
+}
+
+func (p *ebsCsiPluginBase) GetDiskTopologySegments() map[string]string {
+	return map[string]string{}
+}
+
+func (p *ebsCsiPluginBase) GetNodeTopologySegments() map[string]string {
+	return map[string]string{}
 }

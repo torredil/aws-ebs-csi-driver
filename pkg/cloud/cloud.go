@@ -447,7 +447,6 @@ func NewCloud(region string, awsSdkDebugLog bool, userAgentExtra string, batchin
 		}
 	}
 
-	plugin := plugin.GetPlugin()
 	ec2Options := func(o *ec2.Options) {
 		o.APIOptions = append(o.APIOptions,
 			RecordRequestsMiddleware(deprecatedMetrics),
@@ -471,11 +470,12 @@ func NewCloud(region string, awsSdkDebugLog bool, userAgentExtra string, batchin
 		}
 	}
 
+	p := plugin.GetPlugin()
 	var ec2Client util.EC2API
 	var smClient util.SageMakerAPI
-	if plugin != nil {
-		ec2Client = plugin.GetEC2Client(cfg, ec2Options)
-		smClient = plugin.GetSageMakerClient(cfg, smOptions)
+	if p != nil {
+		ec2Client = p.GetEC2Client(cfg, ec2Options)
+		smClient = p.GetSageMakerClient(cfg, smOptions)
 	}
 	// Default clients if plugin is not in use or does not implement client override.
 	if ec2Client == nil {

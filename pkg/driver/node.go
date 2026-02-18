@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -33,6 +34,7 @@ import (
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/internal"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/plugin"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -624,6 +626,10 @@ func (d *NodeService) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		segments[AwsPartitionKey] = outpostArn.Partition
 		segments[AwsAccountIDKey] = outpostArn.AccountID
 		segments[AwsOutpostIDKey] = outpostArn.Resource
+	}
+
+	if p := plugin.GetPlugin(); p != nil {
+		maps.Copy(segments, p.GetNodeTopologySegments())
 	}
 
 	topology := &csi.Topology{Segments: segments}

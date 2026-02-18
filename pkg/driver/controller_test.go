@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math/rand"
 	"reflect"
 	"strings"
@@ -34,6 +35,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/internal"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/plugin"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/testutil"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -171,19 +173,23 @@ func TestCreateVolume(t *testing.T) {
 						},
 					},
 				}
+				expectedSegments := map[string]string{
+					WellKnownZoneTopologyKey: expZone,
+					AwsAccountIDKey:          outpostArn.AccountID,
+					AwsOutpostIDKey:          outpostArn.Resource,
+					AwsRegionKey:             outpostArn.Region,
+					AwsPartitionKey:          outpostArn.Partition,
+				}
+				if p := plugin.GetPlugin(); p != nil {
+					maps.Copy(expectedSegments, p.GetDiskTopologySegments())
+				}
 				expVol := &csi.Volume{
 					CapacityBytes: stdVolSize,
 					VolumeId:      "vol-test",
 					VolumeContext: map[string]string{},
 					AccessibleTopology: []*csi.Topology{
 						{
-							Segments: map[string]string{
-								WellKnownZoneTopologyKey: expZone,
-								AwsAccountIDKey:          outpostArn.AccountID,
-								AwsOutpostIDKey:          outpostArn.Resource,
-								AwsRegionKey:             outpostArn.Region,
-								AwsPartitionKey:          outpostArn.Partition,
-							},
+							Segments: expectedSegments,
 						},
 					},
 				}
@@ -657,13 +663,19 @@ func TestCreateVolume(t *testing.T) {
 						},
 					},
 				}
+				expectedSegments := map[string]string{
+					WellKnownZoneTopologyKey: expZone,
+				}
+				if p := plugin.GetPlugin(); p != nil {
+					maps.Copy(expectedSegments, p.GetDiskTopologySegments())
+				}
 				expVol := &csi.Volume{
 					CapacityBytes: stdVolSize,
 					VolumeId:      "vol-test",
 					VolumeContext: map[string]string{},
 					AccessibleTopology: []*csi.Topology{
 						{
-							Segments: map[string]string{WellKnownZoneTopologyKey: expZone},
+							Segments: expectedSegments,
 						},
 					},
 				}
@@ -2166,13 +2178,19 @@ func TestCreateVolume(t *testing.T) {
 						},
 					},
 				}
+				expectedSegments := map[string]string{
+					WellKnownZoneTopologyKey: expZone,
+				}
+				if p := plugin.GetPlugin(); p != nil {
+					maps.Copy(expectedSegments, p.GetDiskTopologySegments())
+				}
 				expVol := &csi.Volume{
 					CapacityBytes: stdVolSize,
 					VolumeId:      "vol-test",
 					VolumeContext: map[string]string{},
 					AccessibleTopology: []*csi.Topology{
 						{
-							Segments: map[string]string{WellKnownZoneTopologyKey: expZone},
+							Segments: expectedSegments,
 						},
 					},
 				}

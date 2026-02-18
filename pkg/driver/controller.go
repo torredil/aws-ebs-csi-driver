@@ -33,6 +33,7 @@ import (
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/coalescer"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/driver/internal"
+	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/plugin"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util"
 	"github.com/kubernetes-sigs/aws-ebs-csi-driver/pkg/util/template"
 	"google.golang.org/grpc/codes"
@@ -1209,14 +1210,15 @@ func newCreateVolumeResponse(disk *cloud.Disk, ctx map[string]string) *csi.Creat
 	}
 
 	segments := map[string]string{WellKnownZoneTopologyKey: disk.AvailabilityZone}
-
 	arn, err := arn.Parse(disk.OutpostArn)
-
 	if err == nil {
 		segments[AwsRegionKey] = arn.Region
 		segments[AwsPartitionKey] = arn.Partition
 		segments[AwsAccountIDKey] = arn.AccountID
 		segments[AwsOutpostIDKey] = strings.ReplaceAll(arn.Resource, "outpost/", "")
+	}
+	if p := plugin.GetPlugin(); p != nil {
+		maps.Copy(segments, p.GetDiskTopologySegments())
 	}
 
 	return &csi.CreateVolumeResponse{
