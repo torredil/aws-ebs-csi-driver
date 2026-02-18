@@ -158,7 +158,7 @@ sidecars:
     livenessProbe:
       httpGet:
         path: /healthz
-        port: healthz
+        port: healthz-ndr
       initialDelaySeconds: 30
       periodSeconds: 90
       timeoutSeconds: 15

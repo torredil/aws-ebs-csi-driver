@@ -220,7 +220,7 @@ spec:
             {{- . | toYaml | nindent 12 }}
           {{- end }}
           ports:
-            - name: healthz
+            - name: healthz-ndr
               containerPort: {{ .Values.sidecars.nodeDriverRegistrar.healthPort }}
           {{- with .Values.sidecars.nodeDriverRegistrar.livenessProbe }}
           livenessProbe:

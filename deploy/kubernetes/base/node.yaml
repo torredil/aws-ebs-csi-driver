@@ -118,12 +118,12 @@ spec:
             - name: DRIVER_REG_SOCK_PATH
               value: /var/lib/kubelet/plugins/ebs.csi.aws.com/csi.sock
           ports:
-            - name: healthz
+            - name: healthz-ndr
               containerPort: 9809
           livenessProbe:
             httpGet:
               path: /healthz
-              port: healthz
+              port: healthz-ndr
             initialDelaySeconds: 30
             periodSeconds: 90
             timeoutSeconds: 15
